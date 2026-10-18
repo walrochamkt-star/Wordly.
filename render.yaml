@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: wordly
+    runtime: static
+    buildCommand: ""
+    staticPublishPath: .
+    headers:
+      - path: /*
+        name: Permissions-Policy
+        value: microphone=(self)
