@@ -538,6 +538,55 @@ async function send(text){
 
 function alertBox(msg){ $("err").textContent = msg; $("err").classList.remove("hidden"); $("setup").classList.remove("hidden"); }
 
+/* ---------- Carregar o cérebro com plano B ----------
+   Se a placa de vídeo não aceitar o formato escolhido (erro "exit(1)"), ou se um download
+   antigo estiver corrompido, a página limpa o que foi salvo e tenta versões mais compatíveis. */
+async function gpuSupportsF16(){
+  try{ const a = await navigator.gpu.requestAdapter(); return !!(a && a.features && a.features.has("shader-f16")); }
+  catch(_){ return false; }
+}
+function loadOnce(modelId, appConfig, label){
+  let lastTick = Date.now();
+  const STALL_MS = window.__STALL_MS || 90000;
+  let watchdog;
+  const stalled = new Promise((_, reject) => {
+    watchdog = setInterval(() => {
+      if(Date.now() - lastTick > STALL_MS) reject(new Error("o download parou de avançar por " + Math.round(STALL_MS/1000) + " segundos"));
+    }, 2000);
+  });
+  const loading = webllm.CreateMLCEngine(modelId, {
+    appConfig,
+    initProgressCallback: p => {
+      lastTick = Date.now();
+      $("bar").style.width = Math.round((p.progress || 0) * 100) + "%";
+      $("loadText").textContent = label + "Carregando o cérebro do Leeuwie: " + Math.round((p.progress||0)*100) + "%. Na primeira vez demora alguns minutos.";
+    }
+  });
+  return Promise.race([loading, stalled]).finally(() => clearInterval(watchdog));
+}
+async function loadBrain(chosen){
+  const appConfig = { ...webllm.prebuiltAppConfig, cacheBackend: (typeof caches !== "undefined") ? "cache" : "indexeddb" };
+  const f16 = await gpuSupportsF16();
+  const f32 = id => id.replace("q4f16_1", "q4f32_1");
+  const light = "Llama-3.2-1B-Instruct-q4f32_1-MLC";
+  const plan = [...new Set(f16 ? [chosen, f32(chosen), light] : [f32(chosen), light])];
+  const known = new Set((appConfig.model_list || []).map(m => m.model_id));
+  let lastErr = null;
+  for(let i = 0; i < plan.length; i++){
+    const id = plan[i];
+    if(known.size && !known.has(id)) continue;
+    const label = i === 0 ? "" : "Tentando uma versão mais compatível (" + (i+1) + " de " + plan.length + "). ";
+    try{ return await loadOnce(id, appConfig, label); }
+    catch(e){
+      lastErr = e;
+      console.warn("[Wordly] falhou ao carregar", id, e);
+      // limpa o que foi salvo desse cérebro, caso esteja corrompido
+      try{ await webllm.deleteModelAllInfoInCache(id, appConfig); }catch(_){}
+    }
+  }
+  throw lastErr || new Error("nenhum cérebro compatível com esta placa de vídeo");
+}
+
 /* ---------- Ligar o cérebro ---------- */
 $("start").onclick = async () => {
   if(!navigator.gpu){
@@ -556,25 +605,7 @@ $("start").onclick = async () => {
     }
   }
   try{
-    const appConfig = { ...webllm.prebuiltAppConfig, cacheBackend: (typeof caches !== "undefined") ? "cache" : "indexeddb" };
-    let lastTick = Date.now();
-    const STALL_MS = window.__STALL_MS || 90000;
-    let watchdog;
-    const stalled = new Promise((_, reject) => {
-      watchdog = setInterval(() => {
-        if(Date.now() - lastTick > STALL_MS) reject(new Error("o download parou de avançar por " + Math.round(STALL_MS/1000) + " segundos"));
-      }, 2000);
-    });
-    const loading = webllm.CreateMLCEngine($("model").value, {
-      appConfig,
-      initProgressCallback: p => {
-        lastTick = Date.now();
-        $("bar").style.width = Math.round((p.progress || 0) * 100) + "%";
-        $("loadText").textContent = "Carregando o cérebro do Leeuwie: " + Math.round((p.progress||0)*100) + "%. Na primeira vez demora alguns minutos.";
-      }
-    });
-    try{ engine = await Promise.race([loading, stalled]); }
-    finally{ clearInterval(watchdog); }
+    engine = await loadBrain($("model").value);
   }catch(e){
     $("start").disabled = false;
     const checks = [["Hugging Face (cérebro)", "https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q4f16_1-MLC/resolve/main/mlc-chat-config.json"],
@@ -585,7 +616,9 @@ $("start").onclick = async () => {
     const blocked = res.some(r => r.includes("BLOQUEADO") || r.includes("erro"));
     const fix = blocked
       ? "COMO RESOLVER: abra este arquivo no Google Chrome (botão direito no arquivo, Abrir com, Google Chrome). Se já estiver no Chrome, a internet desta rede bloqueia o download: tente em outra rede, como a de casa ou o celular roteado."
-      : "COMO RESOLVER: a conexão está ok, então pode ter sido uma queda momentânea ou falta de espaço no disco. Clique em Acordar o Leeuwie de novo; se repetir, escolha o cérebro Leve.";
+      : /exit\(|GPU|WebGPU|device|adapter|memory/i.test(e.message)
+        ? "COMO RESOLVER: a sua placa de vídeo não conseguiu rodar a IA, mesmo nas versões mais leves. Atualize o navegador e o driver de vídeo, feche outras abas pesadas e tente de novo. No Chrome, confira em chrome://gpu se o WebGPU aparece como ativado."
+        : "COMO RESOLVER: a conexão está ok, então pode ter sido uma queda momentânea ou falta de espaço no disco. Clique em Acordar o Leeuwie de novo; se repetir, escolha o cérebro Leve.";
     alertBox(fix + " Detalhes: " + e.message + ". Teste de conexão: " + res.join(" | ") + ". Aberto em: " + where + " / " + (navigator.userAgent.match(/(Edg|Chrome|Electron|Firefox|Safari)\/[\d.]+/g)||[]).join(" "));
     setStatus("", "Esperando");
     return;
