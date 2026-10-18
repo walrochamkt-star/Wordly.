@@ -262,18 +262,25 @@ function mouth(on){
 }
 
 /* ---------- Voz do Leeuwie (voz gratuita do navegador) ---------- */
-let voice = null, ptVoice = null;
-function pickVoice(){
+let voice = null;
+/* Uma voz só por professor. De preferência uma voz "Multilingual" (Microsoft Edge),
+   que fala português e o idioma ensinado com o mesmo timbre. Sem ela, usa a voz nativa para tudo. */
+function nativeVoice(){
   const vs = speechSynthesis.getVoices().filter(v => /^nl/i.test(v.lang));
-  voice = vs.find(v => /nl-NL/i.test(v.lang) && /google/i.test(v.name))
+  return vs.find(v => /nl-NL/i.test(v.lang) && /google/i.test(v.name))
        || vs.find(v => /nl-NL/i.test(v.lang) && /(xander|frank|maarten|male|man)/i.test(v.name))
        || vs.find(v => /nl-NL/i.test(v.lang)) || vs[0] || null;
 }
-function pickPtVoice(){
-  const vs = speechSynthesis.getVoices().filter(v => /^pt/i.test(v.lang));
-  ptVoice = vs.find(v => /pt-BR/i.test(v.lang) && /google/i.test(v.name)) || vs.find(v => /pt-BR/i.test(v.lang)) || vs[0] || null;
+function pickVoice(){
+  const multi = speechSynthesis.getVoices().filter(v => /multilingual/i.test(v.name));
+  const gender = /(andrew|brian|remy|florian|giuseppe|tristan|william|ryan|christopher|guy)/i;
+  const PREF = ["maarten", "andrew", "brian"];
+  voice = PREF.map(n => multi.find(v => v.name.toLowerCase().includes(n) && gender.test(v.name))).find(Boolean)
+       || multi.find(v => /^nl/i.test(v.lang) && gender.test(v.name))
+       || multi.find(v => gender.test(v.name))
+       || nativeVoice();
 }
-speechSynthesis.onvoiceschanged = () => { pickVoice(); pickPtVoice(); }; pickVoice(); pickPtVoice();
+speechSynthesis.onvoiceschanged = pickVoice; pickVoice();
 
 const SPEEDS = [0.85, 1.0, 1.15, 1.3, 1.5];
 let speechRate = 1.15;
@@ -319,8 +326,7 @@ function speak(text){
       if(i >= chunks.length) return finish();
       const c = chunks[i++];
       const u = new SpeechSynthesisUtterance(c.text);
-      if(c.pt){ u.lang = "pt-BR"; if(ptVoice) u.voice = ptVoice; }
-      else { u.lang = "nl-NL"; if(voice) u.voice = voice; }
+      if(voice){ u.voice = voice; u.lang = voice.lang; } else u.lang = c.pt ? "pt-BR" : "nl-NL";
       u.rate = speechRate; u.pitch = 1.05;
       let done = false;
       const go = () => { if(done) return; done = true; clearTimeout(guard); next(); };
@@ -337,17 +343,26 @@ function speak(text){
 /* Aperta Falar para começar e Terminei para enviar. */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 let rec = null, listening = false, userStop = false, micFatal = false, heard = "", currentFinal = "";
-let micStream = null;
+/* Pede a permissão do microfone uma vez e solta o microfone na hora,
+   para não disputar o microfone com o reconhecimento de voz. */
+let micAllowed = false;
 async function ensureMic(){
-  if(micStream || !navigator.mediaDevices) return true;
-  try{ micStream = await navigator.mediaDevices.getUserMedia({ audio: true }); return true; }
-  catch(e){ toast(MIC_ERRORS["not-allowed"]); return false; }
+  if(micAllowed || !navigator.mediaDevices) return true;
+  try{
+    const st = await navigator.mediaDevices.getUserMedia({ audio: true });
+    st.getTracks().forEach(t => t.stop());
+    micAllowed = true; return true;
+  }catch(e){ toast(MIC_ERRORS["not-allowed"]); return false; }
 }
+let restarts = 0, stopGuard = null, finished = true;
+const wait = ms => new Promise(r => setTimeout(r, ms));
 async function startListening(){
   if(!SR){ toast("Seu navegador não reconhece voz. Use o Google Chrome, ou escreva na caixa ao lado."); return; }
   if(thinking || !engine){ toast("Espere um pouquinho, ainda estou pensando na resposta."); return; }
   stopSpeaking(); hideToast();
   if(!(await ensureMic())) return;
+  await wait(150); // deixa a voz do professor parar antes de abrir o microfone
+  restarts = 0; finished = false;
   heard = ""; currentFinal = ""; userStop = false; micFatal = false; $("typeIn").value = "";
   if(!beginRecognition()) return;
   listening = true;
@@ -374,13 +389,20 @@ function beginRecognition(){
   rec.onend = () => {
     heard = [heard, currentFinal].filter(Boolean).join(" ").trim(); currentFinal = "";
     // O Chrome às vezes desliga sozinho depois de um silêncio: religa até você apertar Terminei.
-    if(listening && !userStop && !micFatal){ if(beginRecognition()) return; }
+    if(listening && !userStop && !micFatal && restarts < 30){
+      restarts++;
+      setTimeout(() => { if(listening && !userStop && !micFatal){ if(!beginRecognition()) finishListening(); } else finishListening(); }, 250);
+      return;
+    }
     finishListening();
   };
   try{ rec.start(); return true; }
   catch(e){ toast("Não consegui ligar o microfone: " + e.message); finishListening(); return false; }
 }
 function finishListening(){
+  clearTimeout(stopGuard);
+  if(finished) return;
+  finished = true;
   const wasListening = listening;
   listening = false; $("mic").classList.remove("on"); $("micLabel").textContent = "Falar";
   const t = ($("typeIn").value || "").trim();
@@ -398,7 +420,14 @@ const MIC_ERRORS = {
 let toastTimer;
 function toast(msg){ $("toast").textContent = msg; $("toast").classList.remove("hidden"); clearTimeout(toastTimer); toastTimer = setTimeout(hideToast, 9000); }
 function hideToast(){ $("toast").classList.add("hidden"); }
-$("mic").onclick = () => { if(listening){ userStop = true; try{ rec.stop(); }catch(_){ finishListening(); } } else startListening(); };
+$("mic").onclick = () => {
+  if(!listening){ startListening(); return; }
+  userStop = true;
+  try{ rec.stop(); }catch(_){ finishListening(); return; }
+  // Se o navegador não confirmar que parou, encerra assim mesmo.
+  clearTimeout(stopGuard);
+  stopGuard = setTimeout(() => { try{ rec.abort(); }catch(_){} finishListening(); }, 1500);
+};
 $("typeForm").onsubmit = e => { e.preventDefault(); const t = $("typeIn").value.trim(); if(t){ $("typeIn").value=""; send(t); } };
 
 /* ---------- Conversa ---------- */
