@@ -1,6 +1,6 @@
 # Wordly: modo local sem cota diária e Gemini opcional
 
-Em cada professor, selecione **No meu aparelho — sem cota diária** e inicie. O modo local usa WebLLM 0.2.85 e Qwen3 4B, em um Web Worker; não chama o Gemini, não precisa de chave e não usa cotas de uma API. O prompt compartilhado mantém os cinco idiomas e os ajustes de nível, humor e situação.
+Em cada professor, selecione **No meu aparelho — sem cota diária** e inicie. O modo local usa WebLLM 0.2.85 e Qwen3 4B, em um Web Worker; não chama o Gemini, não precisa de chave e não usa cotas de uma API. As instruções locais compactas mantêm os cinco idiomas e os ajustes de nível, humor e situação.
 
 O primeiro carregamento baixa alguns GB de Hugging Face, além do runtime via jsDelivr. Requer WebGPU, GPU e memória disponíveis. Há progresso e cancelamento. O cache é administrado pelo navegador e pode ser apagado. Não há promessa de desempenho ou qualidade equivalentes ao Gemini. A página precisa ser aberta/carregada pela internet; não é uma instalação offline completa. Reconhecimento de voz pode depender dos serviços do navegador.
 

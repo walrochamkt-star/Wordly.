@@ -1,4 +1,4 @@
-import {promptFor,teachers} from './tutor-prompt.mjs';
+import {teachers} from './tutor-prompt.mjs';
 export const WEBLLM_URL='https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.85/+esm';
 export const LOCAL_REPLY_SCHEMA=JSON.stringify({type:'object',properties:{answer:{type:'string'},language:{type:'string',enum:['pt','target']},translation:{type:'string'},tip:{type:'string'}},required:['answer','language','translation','tip'],additionalProperties:false});
 export async function checkLocalSupport({gpu=globalThis.navigator?.gpu,deviceMemory=globalThis.navigator?.deviceMemory}={}){
@@ -22,7 +22,12 @@ export function localMessages(teacher,settings,messages){
  const recent=messages.filter(m=>m.role!=='system').slice(-7).map(m=>({role:m.role,content:m.content.slice(0,1600)}));
  while(recent.length>1&&recent.reduce((n,m)=>n+m.content.length,0)>5000) recent.splice(0,2);
  const name=rememberedName(messages);
- const base=promptFor(teacher,settings.level,settings.humor,settings.scene).split('Return exactly three lines:')[0];
+ const t=teachers[teacher];
+ const level=settings.level||'A1';
+ const levelRule=level==='A1'?`Explain in Brazilian Portuguese; wrap ${t.language} phrases in [[brackets]]. When asked for a translation, give the actual ${t.language} phrase.`:`Speak ${t.language} at CEFR ${level}; translate into Brazilian Portuguese.`;
+ const scene={bar:'ordering drinks',restaurant:'ordering food',meet:'meeting someone',travel:'airport and hotel'}[settings.scene]||'free conversation';
+ const mood=settings.humor==='sweet'?'Be patient; no swearing.':'Be friendly and lightly playful; never distract from the question.';
+ const base=`You are ${t.name}, a ${t.language} tutor for Brazilian adults. Answer the latest question directly and accurately. Use history to retain names and topic. Never restart, greet again, invent grammar or change topic without reason. ${levelRule} ${mood} Optional scene: ${scene}; the latest student question overrides it. Ask a follow-up only when useful.`;
  const format=`Reply ONLY with a JSON object: answer, language, translation, tip. answer is the spoken answer in 1-2 short sentences, about 30 words. language MUST describe the actual main language of answer: pt for Portuguese, target for ${teachers[teacher].language}. If you give just a translated foreign phrase, use target. Within Portuguese explanations, wrap foreign phrases in [[double brackets]]. translation is Brazilian Portuguese only when answer is in the target language, otherwise empty. tip is empty unless a correction is needed. Never put JSON or field names inside answer.`;
  return [{role:'system',content:base+'\n'+format+(name?'\nThe student explicitly provided this name: '+JSON.stringify(name)+'. Remember it; do not invent other personal facts.':'')},...recent];
 }
