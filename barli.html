@@ -529,7 +529,7 @@ function describeMode(){
 $("model").onchange = describeMode; describeMode();
 $("cancelLoad").onclick = () => loadController?.abort();
 $("start").onclick = async () => {
-  $("start").disabled = true; $("err").classList.add("hidden");
+  $("start").disabled = true; $("model").disabled = true; $("err").classList.add("hidden");
   loadController = new AbortController();
   try{
     if($("model").value === "local"){
@@ -554,7 +554,7 @@ $("start").onclick = async () => {
     $("caption").classList.remove("hidden"); $("controls").classList.remove("hidden");
     await greet();
   }catch(e){ alertBox(e.message); setStatus("", "Esperando"); }
-  finally{ loadController = null; $("start").disabled = false; $("cancelLoad").classList.add("hidden"); $("barWrap").classList.add("hidden"); }
+  finally{ loadController = null; $("model").disabled = Boolean(engine); $("start").disabled = false; $("cancelLoad").classList.add("hidden"); $("barWrap").classList.add("hidden"); }
 };
 
 async function greet(){
