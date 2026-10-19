@@ -145,15 +145,11 @@ html,body{height:100%;overflow:hidden}
       <option value="meet">Conhecendo alguém no trabalho</option>
       <option value="travel">Chegando em Frankfurt (aeroporto e hotel)</option>
     </select>
-    <label for="model">Cérebro do Bärli (IA gratuita que roda no seu computador)</label>
-    <select id="model">
-      <option value="Llama-3.2-3B-Instruct-q4f16_1-MLC">Normal: mais esperto (baixa 2,3 GB na primeira vez)</option>
-      <option value="gemma-2-2b-it-q4f16_1-MLC">Médio: Gemma 2B (1,9 GB)</option>
-      <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC" selected>Leve: para computador mais fraco (0,9 GB)</option>
-    </select>
+    <label for="model">Conversa online</label>
+    <select id="model"><option value="online">Professor conectado</option></select>
     <button class="big" id="start">Acordar o Bärli</button>
     <div class="bar hidden" id="barWrap"><i id="bar"></i></div>
-    <div class="small" id="loadText">Na primeira vez o Bärli baixa o "cérebro" dele para o seu computador. Depois fica guardado e abre rápido. Nada do que você fala é cobrado.</div>
+    <div class="small" id="loadText">Converse por texto ou voz. A voz do professor é sintetizada.</div>
     <div class="warn hidden" id="err"></div>
   </div></div>
 
@@ -189,54 +185,12 @@ html,body{height:100%;overflow:hidden}
 </div></div>
 
 <script type="module">
-const WEBLLM_URL = "https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.85/+esm";
-let webllm = null;
+
 
 const $ = id => document.getElementById(id);
 let engine = null, history = [], busy = false, thinking = false;
 
-/* ---------- Personalidade do Bärli ---------- */
-const SCENES = {
-  free: "Free conversation. You and the student are two friends chatting on a hiking trail in the Bavarian Alps.",
-  bar: "Roleplay: you are the waiter at a beer hall in Munich. The student orders drinks and Bavarian food. Stay in the role, but you are still Bärli.",
-  restaurant: "Roleplay: you are a waiter at a restaurant in Berlin. The student orders food, asks about dishes and pays. Sometimes a dish is sold out, so they must adapt.",
-  meet: "Roleplay: the student starts a new job in Hamburg and you are a colleague. Small talk: names, where they are from, work, hobbies.",
-  travel: "Roleplay: the student just landed at Frankfurt airport. You play the passport officer, then the hotel receptionist."
-};
-const LEVELS = {
-  A1: "Student level A1 (absolute beginner). IMPORTANT: speak mainly in Brazilian Portuguese, like a teacher who explains, and teach German little by little. Put EVERY German word or phrase inside double square brackets, for example [[Hallo]]. Never put Portuguese inside the brackets. Each turn: teach or practice ONE short German phrase (max 6 words), explain it briefly, then ask the student to say it or answer with it in German. Keep your whole line short (max 3 sentences). In the TRADUCAO field write -.",
-  A2: "Student level A2. Use short sentences (max 3), present, Perfekt and simple future, with careful word order. Common everyday vocabulary.",
-  B1: "Student level B1. Natural conversational standard German from Germany, up to 4 sentences, any common tense, some idioms."
-};
-const HUMOR = {
-  sweet: "Humor mode SWEET: dry, deadpan and kind, light jokes, NO swear words at all (only Ach so!, Na toll!, Quatsch!).",
-  spicy: "Humor mode SPICY: dry sarcasm and theatrical indignation about rule-breaking, occasional German swear words (Scheiße!, Mist!, Verdammt!, Was zum Teufel?). About one per message, not always.",
-  unhinged: "Humor mode UNHINGED: extremely deadpan absurd humor and dramatic bureaucratic outrage, frequent German swear words (Ach du Scheiße!, Verdammte Scheiße!, Scheiße!, Was zum Teufel?). Over-the-top reactions to mistakes and to successes."
-};
-
-function systemPrompt(){
-  const lv = $("level").value, hm = $("humor").value, sc = $("scene").value;
-  return `You are BAERLI, a small brown cartoon bear from the German-speaking Alps with a green alpine hat with a feather. You are a German teacher inside a language app for adult Brazilian students.
-Personality: patient, methodical, ironic and extremely organized. Your humor is dry and unexpected. You act theatrically indignant when a grammar rule is broken, but you always explain clearly and briefly. You introduce German grammar (cases, genders, word order, separable verbs) progressively, never with long lectures.
-${HUMOR[hm]}
-Hard limits, in every mode: never insult the student's identity, appearance, origin, health or intelligence. Only make fun of the mistake or the situation. If the student asks you to calm down, do it.
-${LEVELS[lv]}
-Scene: ${SCENES[sc]}
-
-Teaching rules:
-- Unless the level says otherwise, speak standard German from Germany in your line.
-- If the student's last message has a German mistake, react in character, say the correct sentence in German, and explain the mistake in ONE short sentence in Brazilian Portuguese in the DICA field.
-- If there is no mistake, DICA is "-".
-- If the student writes in Portuguese, answer in German and teach how to say it in German in DICA.
-- Always end your German line with ONE question to keep the conversation going.
-- Never say you are an AI or mention any company or technology. You are Bärli.
-
-Keep the entire answer under 40 words. Your spoken line must be at most TWO short sentences. Give only ONE simple question. Accuracy comes before jokes.
-ANSWER FORMAT. Exactly three lines, nothing else:
-BAERLI: <your line in German>
-TRADUCAO: <translation of your line into Brazilian Portuguese, or - if your line is already in Portuguese>
-DICA: <short correction or tip in Brazilian Portuguese, or ->`;
-}
+function systemPrompt(){ return ""; }
 
 /* ---------- Status e boca ---------- */
 function setStatus(kind, text){
@@ -520,33 +474,19 @@ function parse(raw){
 }
 
 /* Pede a resposta em partes: o professor começa a falar assim que a primeira linha fica pronta. */
-const FIRST_LINE = new RegExp("BAERLI\\s*:\\s*([\\s\\S]+?)(?:\\n|TRADU[CÇ][AÃ]O\\s*:)", "i");
-async function ask(messages, temperature){
-  let raw = "", bubble = null, speaking = Promise.resolve();
-  try{
-  const stream = await engine.chat.completions.create({ messages, temperature, max_tokens: 96, stream: true });
-  for await (const chunk of stream){
-    raw += (chunk.choices[0] && chunk.choices[0].delta && chunk.choices[0].delta.content) || "";
-    if(!bubble){
-      const m = raw.match(FIRST_LINE);
-      if(m && m[1].trim()){
-        const es = m[1].trim();
-        bubble = addTeacher({ es, pt: "", tip: "" });
-        $("mic").disabled = true;
-        speaking = speak(es);
-      }
-    }
-  }
-  }catch(e){
-    $("mic").disabled = true;
-    if(!bubble) throw new Error("a IA não conseguiu responder (" + e.message + ")");
-    // A primeira frase já saiu: mantém o que chegou e segue a conversa.
-  }
-  if(!raw.trim()) throw new Error("a IA não retornou uma resposta. Abra Ajustes e tente acordar o professor com o cérebro Leve");
-  const p = parse(raw);
-  if(bubble){ p.es = bubble.dataset.es; fillTeacher(bubble, p); }
-  else { addTeacher(p); $("mic").disabled = true; speaking = speak(p.es); }
-  return { raw, speaking };
+async function ask(messages){
+  const response = await fetch("/api/chat", {
+    method: "POST", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({teacher:"barli",level:$("level").value,humor:$("humor").value,scene:$("scene").value,
+      messages:messages.filter(m => m.role !== "system")}),
+    signal: AbortSignal.timeout(35000)
+  });
+  const data = await response.json();
+  if(!response.ok) throw new Error(data.error || "Não consegui conversar agora.");
+  const p = parse(data.raw);
+  if(!p.es) throw new Error("O professor não retornou uma resposta.");
+  addTeacher(p);
+  return {raw:data.raw,speaking:speak(p.es)};
 }
 
 async function send(text){
@@ -558,7 +498,7 @@ async function send(text){
   history.push({ role:"user", content:text });
   setStatus("think", "Bärli pensando");
   try{
-    const msgs = [{ role:"system", content: systemPrompt() }, ...history.slice(-5)];
+    const msgs = [{ role:"system", content: systemPrompt() }, ...history.slice(-13)];
     const { raw, speaking } = await ask(msgs, 0.5);
     history.push({ role:"assistant", content: raw });
     speaking.catch(e => console.warn("[Wordly] voz", e));
@@ -572,99 +512,23 @@ async function send(text){
 
 function alertBox(msg){ $("err").textContent = msg; $("err").classList.remove("hidden"); $("setup").classList.remove("hidden"); }
 
-/* ---------- Carregar o cérebro com plano B ----------
-   Se a placa de vídeo não aceitar o formato escolhido (erro "exit(1)"), ou se um download
-   antigo estiver corrompido, a página limpa o que foi salvo e tenta versões mais compatíveis. */
-async function gpuSupportsF16(){
-  try{ const a = await navigator.gpu.requestAdapter(); return !!(a && a.features && a.features.has("shader-f16")); }
-  catch(_){ return false; }
-}
-function loadOnce(modelId, appConfig, label){
-  let lastTick = Date.now();
-  const STALL_MS = window.__STALL_MS || 90000;
-  let watchdog;
-  const stalled = new Promise((_, reject) => {
-    watchdog = setInterval(() => {
-      if(Date.now() - lastTick > STALL_MS) reject(new Error("o download parou de avançar por " + Math.round(STALL_MS/1000) + " segundos"));
-    }, 2000);
-  });
-  const loading = webllm.CreateMLCEngine(modelId, {
-    appConfig,
-    initProgressCallback: p => {
-      lastTick = Date.now();
-      $("bar").style.width = Math.round((p.progress || 0) * 100) + "%";
-      $("loadText").textContent = label + "Carregando o cérebro do Bärli: " + Math.round((p.progress||0)*100) + "%. Na primeira vez demora alguns minutos.";
-    }
-  }, { context_window_size: 2048 });
-  return Promise.race([loading, stalled]).finally(() => clearInterval(watchdog));
-}
-async function loadBrain(chosen){
-  const appConfig = { ...webllm.prebuiltAppConfig, cacheBackend: (typeof caches !== "undefined") ? "cache" : "indexeddb" };
-  const f16 = await gpuSupportsF16();
-  const f32 = id => id.replace("q4f16_1", "q4f32_1");
-  const light = "Llama-3.2-1B-Instruct-" + (f16 ? "q4f16_1" : "q4f32_1") + "-MLC";
-  const plan = [...new Set(f16 ? [chosen, light, f32(light)] : [f32(chosen), light])];
-  const known = new Set((appConfig.model_list || []).map(m => m.model_id));
-  let lastErr = null;
-  for(let i = 0; i < plan.length; i++){
-    const id = plan[i];
-    if(known.size && !known.has(id)) continue;
-    const label = i === 0 ? "" : "Tentando uma versão mais compatível (" + (i+1) + " de " + plan.length + "). ";
-    try{ return await loadOnce(id, appConfig, label); }
-    catch(e){
-      lastErr = e;
-      console.warn("[Wordly] falhou ao carregar", id, e);
-      // limpa o que foi salvo desse cérebro, caso esteja corrompido
-      try{ await webllm.deleteModelAllInfoInCache(id, appConfig); }catch(_){}
-    }
-  }
-  throw lastErr || new Error("nenhum cérebro compatível com esta placa de vídeo");
-}
-
-/* ---------- Ligar o cérebro ---------- */
+/* Conecta ao servidor; a chave da API nunca vai para o navegador. */
+$("loadText").textContent = "Converse por texto ou voz. A voz do professor é sintetizada.";
 $("start").onclick = async () => {
-  if(!navigator.gpu){
-    alertBox("Este navegador não tem WebGPU, que é o que permite rodar a IA no seu computador. Abra esta página no Google Chrome ou no Microsoft Edge atualizados.");
-    return;
-  }
-  $("start").disabled = true; $("barWrap").classList.remove("hidden"); $("err").classList.add("hidden");
-  setStatus("think", "Acordando");
-  if(!webllm){
-    try{ webllm = await import(WEBLLM_URL); }
-    catch(e){
-      $("start").disabled = false;
-      alertBox("Não consegui baixar a biblioteca de IA. Confira se o computador está conectado à internet e tente de novo. (" + e.message + ")");
-      setStatus("", "Esperando");
-      return;
-    }
-  }
+  $("start").disabled = true; $("err").classList.add("hidden");
   try{
-    engine = await loadBrain($("model").value);
-  }catch(e){
-    $("start").disabled = false;
-    const checks = [["Hugging Face (cérebro)", "https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q4f16_1-MLC/resolve/main/mlc-chat-config.json"],
-                    ["GitHub (motor)", "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/README.md"]];
-    const res = [];
-    for(const [n,u] of checks){ try{ const r = await fetch(u, {cache:"no-store", signal: AbortSignal.timeout(8000)}); res.push(n + ": " + (r.ok ? "ok" : "erro " + r.status)); }catch(_){ res.push(n + ": BLOQUEADO"); } }
-    const where = location.protocol === "file:" ? "arquivo aberto direto do computador" : location.host || "desconhecido";
-    const blocked = res.some(r => r.includes("BLOQUEADO") || r.includes("erro"));
-    const fix = blocked
-      ? "COMO RESOLVER: abra este arquivo no Google Chrome (botão direito no arquivo, Abrir com, Google Chrome). Se já estiver no Chrome, a internet desta rede bloqueia o download: tente em outra rede, como a de casa ou o celular roteado."
-      : /exit\(|GPU|WebGPU|device|adapter|memory/i.test(e.message)
-        ? "COMO RESOLVER: a sua placa de vídeo não conseguiu rodar a IA, mesmo nas versões mais leves. Atualize o navegador e o driver de vídeo, feche outras abas pesadas e tente de novo. No Chrome, confira em chrome://gpu se o WebGPU aparece como ativado."
-        : "COMO RESOLVER: a conexão está ok, então pode ter sido uma queda momentânea ou falta de espaço no disco. Clique em Acordar o Bärli de novo; se repetir, escolha o cérebro Leve.";
-    alertBox(fix + " Detalhes: " + e.message + ". Teste de conexão: " + res.join(" | ") + ". Aberto em: " + where + " / " + (navigator.userAgent.match(/(Edg|Chrome|Electron|Firefox|Safari)\/[\d.]+/g)||[]).join(" "));
-    setStatus("", "Esperando");
-    return;
-  }
-  $("setup").classList.add("hidden");
-  $("start").classList.add("hidden"); $("barWrap").classList.add("hidden");
-  $("model").disabled = true;
-  $("loadText").textContent = "Mudou nível, humor ou situação? O Bärli recomeça a conversa do zero.";
-  $("settingsBtn").classList.remove("hidden"); $("historyBtn").classList.remove("hidden"); $("closeSetup").classList.remove("hidden");
-  $("caption").classList.remove("hidden");
-  $("controls").classList.remove("hidden");
-  await greet();
+    const response = await fetch("/api/config", {signal:AbortSignal.timeout(15000)});
+    if(!response.ok) throw new Error("Não consegui conectar ao professor. Confira o acesso ao Wordly.");
+    const config = await response.json();
+    if(!config.ready) throw new Error("A IA online ainda não foi configurada no Render.");
+    engine = {};
+    $("setup").classList.add("hidden"); $("start").classList.add("hidden");
+    $("model").disabled = true;
+    $("settingsBtn").classList.remove("hidden"); $("historyBtn").classList.remove("hidden"); $("closeSetup").classList.remove("hidden");
+    $("caption").classList.remove("hidden"); $("controls").classList.remove("hidden");
+    await greet();
+  }catch(e){ alertBox(e.message); setStatus("", "Esperando"); }
+  finally{ $("start").disabled = false; }
 };
 
 async function greet(){

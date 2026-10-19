@@ -7,8 +7,8 @@ for (const file of ['torito', 'coquette', 'barli', 'lupino', 'leeuwie']) {
  const html = readFileSync(`${__dirname}/../${file}.html`, 'utf8');
  const code = html.match(/<script type="module">([\s\S]*?)<\/script>/)[1];
  new vm.Script(code); // Parse the complete page script.
- assert.match(html, /value="Llama-3.2-1B-Instruct-q4f16_1-MLC" selected/);
- assert.match(code, /context_window_size: 2048/);
+ assert.match(html, /value="online"/);
+ assert.match(code, /fetch\("\/api\/chat"/);
  const send = code.slice(code.indexOf('async function send(text)'), code.indexOf('\nfunction alertBox'));
  const state = vm.createContext({assert});
  vm.runInContext(`
@@ -36,6 +36,6 @@ for (const file of ['torito', 'coquette', 'barli', 'lupino', 'leeuwie']) {
    const before=calls; await Promise.all([send('first'),send('second')]);
    assert.equal(calls,before+1); assert.equal(busy,false); assert.equal(mic.disabled,false);
  })()`, state);
- console.log(`${file}: syntax, light default, bounded memory, 12 turns, retry and concurrent send passed`);
+ console.log(`${file}: syntax, online transport, 12 turns, retry and concurrent send passed`);
 }
 })().catch(e => {console.error(e);process.exitCode=1;});

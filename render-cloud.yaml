@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: wordly-conversa
+    runtime: node
+    plan: free
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        sync: false
+      - key: WORDLY_USER
+        sync: false
+      - key: WORDLY_PASSWORD
+        sync: false
+      - key: WORDLY_DAILY_LIMIT
+        value: "200"
