@@ -1,6 +1,5 @@
 import http from 'node:http';
 import {readFile} from 'node:fs/promises';
-import {timingSafeEqual} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 
 export const teachers = {
@@ -13,7 +12,7 @@ export const teachers = {
 const scenes={free:'Free conversation. Follow the topic chosen by the student.',bar:'Ordering at a café or bar.',restaurant:'Ordering food at a restaurant.',meet:'Meeting someone.',travel:'At the airport and hotel.'};
 export function promptFor(teacher,level,humor,scene){
  const t=teachers[teacher];
- if(!t) throw Error('Professor inválido.');
+ if(!Object.hasOwn(teachers,teacher)) throw Error('Professor inválido.');
  const levelRule=level==='A1'
  ? `Explain in Brazilian Portuguese. Put only ${t.language} phrases inside [[double brackets]]. Teach one short phrase at a time, but first answer what the student actually asked. Do not force a lesson when they asked something else. TRADUCAO must be - when your main line is in Portuguese.`
  : `Speak ${t.language} at CEFR ${level}. Translate your main line accurately into Brazilian Portuguese in TRADUCAO.`;
@@ -29,22 +28,16 @@ ${t.label}: <the spoken answer>
 TRADUCAO: <Brazilian Portuguese translation, or ->
 DICA: <one relevant language correction, only when useful, or ->`;
 }
-function equal(a,b){const aa=Buffer.from(a),bb=Buffer.from(b);return aa.length===bb.length&&timingSafeEqual(aa,bb);}
 const publicPaths=new Set(['index.html',...Object.keys(teachers).map(t=>t+'.html')]);
 export function makeServer({env=process.env,fetchImpl=fetch,root=new URL('./',import.meta.url),clock=Date.now}={}){
  let active=0,day='',daily=0; const rate=new Map();
- const ready=()=>Boolean(env.GEMINI_API_KEY&&env.GEMINI_FREE_TIER_CONFIRMED==='true'&&env.WORDLY_USER&&env.WORDLY_PASSWORD);
+ const ready=()=>Boolean(env.GEMINI_API_KEY&&env.GEMINI_FREE_TIER_CONFIRMED==='true');
  const json=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));};
  return http.createServer(async(req,res)=>{
  try{
   res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Permissions-Policy','microphone=(self)');
   const url=new URL(req.url,'http://localhost');
   if(url.pathname==='/healthz'){return json(res,200,{ok:true});}
-  if(!env.WORDLY_USER||!env.WORDLY_PASSWORD) return json(res,503,{error:'Configure o acesso do Wordly no Render.'});
-  const expected='Basic '+Buffer.from(env.WORDLY_USER+':'+env.WORDLY_PASSWORD).toString('base64');
-  if(!equal(req.headers.authorization||'',expected)){
-   res.setHeader('WWW-Authenticate','Basic realm="Wordly", charset="UTF-8"');return json(res,401,{error:'Entre com o usuário e a senha do Wordly.'});
-  }
   if(req.method==='GET'&&url.pathname==='/api/config') return json(res,200,{ready:ready()});
   if(req.method==='POST'&&url.pathname==='/api/chat'){
    if(!ready()) return json(res,503,{error:'A IA online ainda não foi configurada no Render.'});
@@ -54,7 +47,7 @@ export function makeServer({env=process.env,fetchImpl=fetch,root=new URL('./',im
    for await(const chunk of req){size+=chunk.length;if(size>24000){json(res,413,{error:'Mensagem muito grande.'});return;}body+=chunk;}
    let input;try{input=JSON.parse(body);}catch{return json(res,400,{error:'JSON inválido.'});}
    const {teacher,level='A1',humor='sweet',scene='free',messages}=input;
-   if(!teachers[teacher]||!['A1','A2','B1'].includes(level)||!Array.isArray(messages)||!messages.length||messages.length>13) return json(res,400,{error:'Conversa inválida.'});
+   if(!Object.hasOwn(teachers,teacher)||!['A1','A2','B1'].includes(level)||!Array.isArray(messages)||!messages.length||messages.length>13) return json(res,400,{error:'Conversa inválida.'});
    if(messages.some((m,i)=>!m||m.role!==(i%2?'assistant':'user')||typeof m.content!=='string'||!m.content.trim()||m.content.length>1600)||messages.at(-1).role!=='user') return json(res,400,{error:'Histórico inválido.'});
    const now=clock(),today=new Date(now).toISOString().slice(0,10);
    if(day!==today){day=today;daily=0;}
@@ -70,7 +63,17 @@ export function makeServer({env=process.env,fetchImpl=fetch,root=new URL('./',im
      signal:AbortSignal.timeout(30000)
     });
     if(result.status===429) return json(res,429,{error:'A cota gratuita do Gemini foi atingida. Aguarde a renovação. Nenhum serviço alternativo será acionado.'});
-    if(!result.ok) return json(res,502,{error:'Não consegui conectar ao Gemini gratuito. Confira a chave e o acesso ao modelo no AI Studio.'});
+    if(!result.ok){
+     const detail=await result.json().catch(()=>({}));
+     const code=detail.error?.status;
+     console.error('Gemini request failed',JSON.stringify({status:result.status,code:typeof code==='string'?code.replace(/[^A-Z_]/g,'').slice(0,80):undefined}));
+     const error=result.status===401||result.status===403
+      ? 'O Google recusou a chave ou a permissão do Gemini. O administrador precisa conferir a chave no AI Studio.'
+      : result.status===404
+      ? 'O modelo Gemini configurado não está disponível. O administrador precisa atualizar a configuração.'
+      : 'O Gemini está indisponível no momento. Tente novamente em instantes.';
+     return json(res,502,{error});
+    }
     const data=await result.json(),raw=data.choices?.[0]?.message?.content;
     if(typeof raw!=='string'||!raw.trim()||data.choices?.[0]?.finish_reason==='length') return json(res,502,{error:'A resposta veio vazia ou incompleta. Tente novamente.'});
     return json(res,200,{raw});

@@ -13,15 +13,13 @@ Código e testes com API simulada concluídos. A qualidade das respostas, latên
 3. Configurar em **Environment**, diretamente no Render:
    * `GEMINI_API_KEY`: chave privada criada no Google AI Studio em um projeto **Free Tier, sem conta de faturamento vinculada**. Não cadastrar cartão nem ativar faturamento.
    * `GEMINI_FREE_TIER_CONFIRMED`: mudar para `true` somente após verificar manualmente que o projeto da chave está no Free Tier, sem faturamento. O servidor não consegue consultar nem bloquear o faturamento da conta Google. Se o projeto for posteriormente migrado para um plano pago, interromper o serviço ou remover a chave.
-   * `WORDLY_USER`: usuário de acesso para o piloto privado.
-   * `WORDLY_PASSWORD`: senha exclusiva e forte para o piloto. O navegador solicitará o acesso ao abrir a página.
    * `WORDLY_DAILY_LIMIT`: limite global de chamadas por dia, padrão 200. É apenas uma proteção adicional de uso, não altera a cota do provedor.
 4. Publicar e testar na nova URL. A API recebe o texto reconhecido ou digitado e até 13 mensagens recentes. Não recebe o áudio do microfone. O histórico permanece na memória da página. No Free Tier, o Google pode usar as conversas para melhorar seus produtos, conforme os termos do serviço. Não inserir dados pessoais sensíveis. A cobrança depende do projeto Google, não da chave isoladamente.
 5. Validar os casos abaixo antes de substituir a URL de uso. Não declarar a qualidade resolvida apenas porque os testes de transporte passam.
 
 `render-cloud.yaml` é uma alternativa de Blueprint para este serviço; o `render.yaml` original foi preservado para o site estático existente.
 
-Nunca colocar a chave ou senha nos HTMLs, no GitHub ou em uma mensagem do chat. A autenticação e os limites são para piloto privado; um lançamento público precisa de contas individuais e limitação de uso persistente. O contador em memória reinicia a cada deploy/reinício. O plano gratuito do Render pode ter partida lenta após inatividade.
+Nunca colocar a chave ou senha nos HTMLs, no GitHub ou em uma mensagem do chat. O site é público, sem usuário ou senha, com limites globais de uso. O contador em memória reinicia a cada deploy/reinício. O plano gratuito do Render pode ter partida lenta após inatividade.
 
 ## Validação com o modelo real
 
