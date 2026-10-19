@@ -49,3 +49,9 @@ Documentação oficial consultada em 19/10/2026:
 Quando o Google retornar limite de cota (429), o app informa que é necessário aguardar. Não tenta outro provedor ou modelo e não faz recarga nem muda a conta de plano. O modelo é fixo para impedir uma seleção acidental de modelo pago. A disponibilidade e os limites reais do Free Tier precisam ser confirmados na conta antes da ativação.
 
 Criar chave gratuita: https://aistudio.google.com/apikey . Fazer a criação e eventual aceite de termos diretamente no Google, sem compartilhar a chave no chat.
+
+## Conversa local, pronúncia e compatibilidade
+
+O modo local principal usa Qwen3 4B. A opção leve usa Qwen3 1.7B e permanece uma escolha manual; não há garantia de qualidade equivalente. Antes do download, a interface consulta a disponibilidade de WebGPU e dá avisos para aparelhos com pouca memória reportada pelo navegador. Isso não é certificação de compatibilidade de todos os celulares.
+
+Respostas locais usam JSON com idioma principal explícito, convertido para a apresentação do Wordly. Frases no idioma alvo recebem marcação mesmo que o modelo omita os colchetes; português e idioma alvo continuam com vozes separadas. A declaração do idioma depende do modelo. Nomes explicitamente informados pelo aluno são preservados como contexto durante a sessão, além das últimas mensagens; não são salvos em disco. A memória do restante da conversa continua limitada pelo contexto do modelo.

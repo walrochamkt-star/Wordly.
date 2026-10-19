@@ -1,15 +1,15 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {createLocalTutor,localMessages} from '../local-ai.mjs';
+import {createLocalTutor,localMessages,normalizeLocalReply,rememberedName,checkLocalSupport} from '../local-ai.mjs';
 const settings={level:'A1',humor:'sweet',scene:'free'};
 function mock({f16=true,create}={}){
  const worker={terminated:false,terminate(){this.terminated=true;}};
  const calls=[];
  const gpu={requestAdapter:async()=>({features:new Set(f16?['shader-f16']:[])})};
- const loadLibrary=async()=>({prebuiltAppConfig:{model_list:[{model_id:'Qwen3-4B-q4f16_1-MLC'},{model_id:'Qwen3-4B-q4f32_1-MLC'}]},CreateWebWorkerMLCEngine:async(w,id,options,chat)=>{
+ const loadLibrary=async()=>({prebuiltAppConfig:{model_list:[{model_id:'Qwen3-4B-q4f16_1-MLC'},{model_id:'Qwen3-4B-q4f32_1-MLC'},{model_id:'Qwen3-1.7B-q4f16_1-MLC'},{model_id:'Qwen3-1.7B-q4f32_1-MLC'}]},CreateWebWorkerMLCEngine:async(w,id,options,chat)=>{
   calls.push({w,id,options,chat});options.initProgressCallback({progress:0.5});
   if(create) return create();
-  return {chat:{completions:{create:async input=>{calls.push(input);return {choices:[{finish_reason:'stop',message:{content:'<think>hidden</think>TORITO: [[Gracias]].\nTRADUCAO: -\nDICA: -'}}]};}}}};
+  return {chat:{completions:{create:async input=>{calls.push(input);return {choices:[{finish_reason:'stop',message:{content:'<think>hidden</think>'+JSON.stringify({answer:'Gracias.',language:'target',translation:'Obrigado.',tip:''})}}]};}}}};
  }});
  return {gpu,loadLibrary,makeWorker:()=>worker,worker,calls};
 }
@@ -45,4 +45,22 @@ test('local incomplete responses are errors, with no fake success or online fall
  const deps=mock({create:()=>({chat:{completions:{create:async()=>({choices:[{finish_reason:'length',message:{content:'partial'}}]})}}})});
  const tutor=await createLocalTutor({teacher:'leeuwie',...deps});
  await assert.rejects(tutor.complete([{role:'user',content:'Oi'}],settings),/incompleta/);tutor.close();
+});
+
+test('speech uses native voice for unmarked target-language answers and preserves Portuguese explanations',()=>{
+ assert.match(normalizeLocalReply('torito',JSON.stringify({answer:'¡Buenos días!',language:'target',translation:'Bom dia!',tip:''})),/TORITO: \[\[¡Buenos días!\]\]/);
+ assert.match(normalizeLocalReply('coquette',JSON.stringify({answer:'Diga [[bonjour]].',language:'pt',translation:'wrong duplicate',tip:''})),/COQUETTE: Diga \[\[bonjour\]\].\nTRADUCAO: -/);
+ assert.throws(()=>normalizeLocalReply('torito','not json'),/formato inválido/);
+});
+test('preserves explicit student name beyond bounded recent context, accepts correction and ignores assistant inventions',()=>{
+ const messages=[{role:'user',content:'Meu nome é Wal e quero pedir café.'},{role:'assistant',content:'Seu nome é Maria.'},...Array.from({length:20},(_,i)=>({role:i%2?'assistant':'user',content:'Mais uma troca'})),{role:'user',content:'Qual meu nome?'}];
+ assert.match(localMessages('torito',settings,messages)[0].content,/name: "Wal"/);
+ assert.equal(rememberedName([...messages,{role:'user',content:'Não me chamo João.'}]),'Wal');
+ assert.equal(rememberedName([...messages,{role:'user',content:'Pode me chamar de Ana.'}]),'Ana');
+ assert.equal(rememberedName([...messages,{role:'user',content:"Como digo 'meu nome é Ana' em espanhol?"}]),'Wal');
+});
+test('light mode selects the smaller model explicitly and compatibility checks do not download it',async()=>{
+ const deps=mock(),tutor=await createLocalTutor({teacher:'torito',profile:'light',...deps});
+ assert.match(deps.calls[0].id,/1\.7B/);tutor.close();
+ const report=await checkLocalSupport({gpu:deps.gpu,deviceMemory:4});assert.equal(report.ok,true);assert.match(report.message,/pouca memória/);
 });
