@@ -66,6 +66,7 @@ export async function createLocalTutor({teacher,signal,onProgress=()=>{},gpu=glo
  }catch(e){worker.terminate();throw Error(e.message||'Não consegui carregar a IA neste aparelho. Tente outro aparelho ou o modo online.');}
  finally{clearTimeout(timer);signal?.removeEventListener('abort',abortHandler);worker.removeEventListener?.('error',workerError);}
  let active=false,available=true;
+ const modelReplies=new Map();
  return {
   async complete(messages,settings){
    if(!available) throw Error('A IA local foi interrompida. Recarregue a página para iniciar novamente.');
@@ -79,13 +80,17 @@ export async function createLocalTutor({teacher,signal,onProgress=()=>{},gpu=glo
      failed=()=>stop('A IA local parou neste aparelho. Recarregue a página para tentar novamente.');
      worker.addEventListener?.('error',failed,{once:true});
     });
+    const context=localMessages(teacher,settings,messages).map(m=>m.role==='assistant'&&modelReplies.has(m.content)?{...m,content:modelReplies.get(m.content)}:m);
     let result;
-    try{result=await Promise.race([client.chat.completions.create({messages:localMessages(teacher,settings,messages),temperature:0.4,max_tokens:280,response_format:{type:'json_object',schema:LOCAL_REPLY_SCHEMA},extra_body:{enable_thinking:false}}),failure]);}
+    try{result=await Promise.race([client.chat.completions.create({messages:context,temperature:0.4,max_tokens:280,response_format:{type:'json_object',schema:LOCAL_REPLY_SCHEMA},extra_body:{enable_thinking:false}}),failure]);}
     finally{clearTimeout(deadline);worker.removeEventListener?.('error',failed);}
     const choice=result.choices?.[0];
     const raw=choice?.message?.content?.replace(/<think>[\s\S]*?<\/think>/g,'').trim();
     if(!raw||choice.finish_reason==='length') throw Error('A resposta local veio incompleta. Faça uma pergunta mais curta e tente novamente.');
-    return normalizeLocalReply(teacher,raw);
+    const normalized=normalizeLocalReply(teacher,raw);
+    modelReplies.set(normalized,choice.message.content);
+    if(modelReplies.size>32) modelReplies.delete(modelReplies.keys().next().value);
+    return normalized;
    }finally{active=false;}
   },
   close(){available=false;worker.terminate();}

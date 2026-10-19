@@ -64,3 +64,12 @@ test('compatibility checks do not download the model and warn about reported low
  const deps=mock();
  const report=await checkLocalSupport({gpu:deps.gpu,deviceMemory:4});assert.equal(report.ok,true);assert.match(report.message,/pouca memória/);
 });
+
+test('preserves original assistant payload for model context instead of reformatting the cached conversation',async()=>{
+ const deps=mock();const tutor=await createLocalTutor({teacher:'torito',...deps});
+ const first={role:'user',content:'Como digo obrigado?'};
+ const reply=await tutor.complete([first],settings);
+ await tutor.complete([first,{role:'assistant',content:reply},{role:'user',content:'E muito obrigado?'}],settings);
+ const previous=deps.calls[2].messages.find(m=>m.role==='assistant');
+ assert.match(previous.content,/"answer":"Gracias\."/);assert.match(previous.content,/<think>/);tutor.close();
+});
