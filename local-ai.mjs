@@ -30,19 +30,29 @@ export async function createLocalTutor({teacher,signal,onProgress=()=>{},gpu=glo
   cancelled();
  }catch(e){worker.terminate();throw Error(e.message||'Não consegui carregar a IA neste aparelho. Tente outro aparelho ou o modo online.');}
  finally{clearTimeout(timer);signal?.removeEventListener('abort',abortHandler);worker.removeEventListener?.('error',workerError);}
- let active=false;
+ let active=false,available=true;
  return {
   async complete(messages,settings){
+   if(!available) throw Error('A IA local foi interrompida. Recarregue a página para iniciar novamente.');
    if(active) throw Error('Aguarde a resposta anterior.');
    active=true;
    try{
-    const result=await client.chat.completions.create({messages:localMessages(teacher,settings,messages),temperature:0.5,max_tokens:320,extra_body:{enable_thinking:false}});
+    let deadline,failed;
+    const failure=new Promise((_,reject)=>{
+     const stop=message=>{available=false;worker.terminate();reject(Error(message));};
+     deadline=setTimeout(()=>stop('Este aparelho demorou demais para responder. Recarregue a página ou experimente o modo online.'),120000);
+     failed=()=>stop('A IA local parou neste aparelho. Recarregue a página para tentar novamente.');
+     worker.addEventListener?.('error',failed,{once:true});
+    });
+    let result;
+    try{result=await Promise.race([client.chat.completions.create({messages:localMessages(teacher,settings,messages),temperature:0.5,max_tokens:320,extra_body:{enable_thinking:false}}),failure]);}
+    finally{clearTimeout(deadline);worker.removeEventListener?.('error',failed);}
     const choice=result.choices?.[0];
     const raw=choice?.message?.content?.replace(/<think>[\s\S]*?<\/think>/g,'').trim();
     if(!raw||choice.finish_reason==='length') throw Error('A resposta local veio incompleta. Faça uma pergunta mais curta e tente novamente.');
     return raw;
    }finally{active=false;}
   },
-  close(){worker.terminate();}
+  close(){available=false;worker.terminate();}
  };
 }
