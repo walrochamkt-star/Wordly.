@@ -51,3 +51,12 @@ test('free quota exhaustion does not retry or switch provider; free-tier confirm
  const disabled=await start(t,{env:{...env,GEMINI_FREE_TIER_CONFIRMED:'false'},fetchImpl:async()=>{throw Error('never');}});
  assert.equal((await request(disabled,body)).status,503);
 });
+
+test('retries transient unavailability once with the same provider',async t=>{
+ let calls=0;const base=await start(t,{fetchImpl:async()=>++calls===1
+  ? Response.json({error:'unavailable'},{status:503})
+  : Response.json({choices:[{message:{content:'TORITO: Hola'}}]})});
+ assert.equal((await request(base,body)).status,200);assert.equal(calls,2);
+ let failures=0;const failed=await start(t,{fetchImpl:async()=>{failures++;return Response.json({}, {status:503});}});
+ assert.equal((await request(failed,body)).status,502);assert.equal(failures,2);
+});

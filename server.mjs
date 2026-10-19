@@ -57,11 +57,17 @@ export function makeServer({env=process.env,fetchImpl=fetch,root=new URL('./',im
    if(times.length>=10||daily>=Number(env.WORDLY_DAILY_LIMIT||200)||active>=3) return json(res,429,{error:'Limite temporário atingido. Aguarde um pouco.'});
    times.push(now);rate.set(ip,times);daily++;active++;
    try{
-    const result=await fetchImpl('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',{
+    const signal=AbortSignal.timeout(30000);
+    const requestProvider=()=>fetchImpl('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',{
      method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+env.GEMINI_API_KEY},
      body:JSON.stringify({model:'gemini-3.6-flash',reasoning_effort:'low',messages:[{role:'system',content:promptFor(teacher,level,humor,scene)},...messages]}),
-     signal:AbortSignal.timeout(30000)
+     signal
     });
+    let result=await requestProvider();
+    if([502,503,504].includes(result.status)){
+     await result.body?.cancel();
+     result=await requestProvider();
+    }
     if(result.status===429) return json(res,429,{error:'A cota gratuita do Gemini foi atingida. Aguarde a renovação. Nenhum serviço alternativo será acionado.'});
     if(!result.ok){
      const detail=await result.json().catch(()=>({}));
