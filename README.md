@@ -1,6 +1,6 @@
-# Wordly: conversa online
+# Wordly: conversa com Gemini gratuito
 
-Esta proposta substitui o modelo WebLLM executado no computador do aluno por uma API de IA no servidor. O microfone e a síntese de voz continuam no navegador. Não inclui voz neural externa.
+Esta proposta substitui o modelo WebLLM executado no computador do aluno por a modalidade gratuita da API Gemini no servidor, usando `gemini-3.6-flash`. O microfone e a síntese de voz continuam no navegador. Não inclui voz neural externa.
 
 ## Estado da entrega
 
@@ -11,12 +11,12 @@ Código e testes com API simulada concluídos. A qualidade das respostas, latên
 1. Criar um **Web Service** Node com este repositório e a branch `fix/conversation-online`. O serviço estático existente não executa Node. Uma nova URL será gerada para validar a migração.
 2. Build: `npm install --omit=dev`. Start: `npm start`. Health check: `/healthz`.
 3. Configurar em **Environment**, diretamente no Render:
-   * `OPENAI_API_KEY`: chave privada de um projeto com acesso à API e faturamento configurado.
-   * `OPENAI_MODEL`: ID de um modelo habilitado na conta, compatível com Chat Completions e mensagens `developer`. Escolher um modelo apropriado para conversação e testar sua precisão em todos os idiomas.
+   * `GEMINI_API_KEY`: chave privada criada no Google AI Studio em um projeto **Free Tier, sem conta de faturamento vinculada**. Não cadastrar cartão nem ativar faturamento.
+   * `GEMINI_FREE_TIER_CONFIRMED`: mudar para `true` somente após verificar manualmente que o projeto da chave está no Free Tier, sem faturamento. O servidor não consegue consultar nem bloquear o faturamento da conta Google. Se o projeto for posteriormente migrado para um plano pago, interromper o serviço ou remover a chave.
    * `WORDLY_USER`: usuário de acesso para o piloto privado.
    * `WORDLY_PASSWORD`: senha exclusiva e forte para o piloto. O navegador solicitará o acesso ao abrir a página.
-   * `WORDLY_DAILY_LIMIT`: limite global de chamadas por dia, padrão 200. Não é um teto monetário. Configure também um orçamento no provedor.
-4. Publicar e testar na nova URL. A API recebe o texto reconhecido ou digitado e até 13 mensagens recentes. Não recebe o áudio do microfone. O histórico permanece na memória da página. Chamadas usam `store: false`.
+   * `WORDLY_DAILY_LIMIT`: limite global de chamadas por dia, padrão 200. É apenas uma proteção adicional de uso, não altera a cota do provedor.
+4. Publicar e testar na nova URL. A API recebe o texto reconhecido ou digitado e até 13 mensagens recentes. Não recebe o áudio do microfone. O histórico permanece na memória da página. No Free Tier, o Google pode usar as conversas para melhorar seus produtos, conforme os termos do serviço. Não inserir dados pessoais sensíveis. A cobrança depende do projeto Google, não da chave isoladamente.
 5. Validar os casos abaixo antes de substituir a URL de uso. Não declarar a qualidade resolvida apenas porque os testes de transporte passam.
 
 `render-cloud.yaml` é uma alternativa de Blueprint para este serviço; o `render.yaml` original foi preservado para o site estático existente.
@@ -41,4 +41,12 @@ Para cada um dos cinco professores:
 
 Node 22 ou superior. `npm test` executa validação do servidor, isolamento do microfone e histórico. As chamadas externas são simuladas nos testes; nenhuma credencial real é necessária.
 
-Documentação da API usada: https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create
+Documentação oficial consultada em 19/10/2026:
+
+* https://ai.google.dev/gemini-api/docs/openai
+* https://ai.google.dev/gemini-api/docs/pricing
+* https://ai.google.dev/gemini-api/docs/billing
+
+Quando o Google retornar limite de cota (429), o app informa que é necessário aguardar. Não tenta outro provedor ou modelo e não faz recarga nem muda a conta de plano. O modelo é fixo para impedir uma seleção acidental de modelo pago. A disponibilidade e os limites reais do Free Tier precisam ser confirmados na conta antes da ativação.
+
+Criar chave gratuita: https://aistudio.google.com/apikey . Fazer a criação e eventual aceite de termos diretamente no Google, sem compartilhar a chave no chat.

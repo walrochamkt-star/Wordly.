@@ -33,7 +33,7 @@ function equal(a,b){const aa=Buffer.from(a),bb=Buffer.from(b);return aa.length==
 const publicPaths=new Set(['index.html',...Object.keys(teachers).map(t=>t+'.html')]);
 export function makeServer({env=process.env,fetchImpl=fetch,root=new URL('./',import.meta.url),clock=Date.now}={}){
  let active=0,day='',daily=0; const rate=new Map();
- const ready=()=>Boolean(env.OPENAI_API_KEY&&env.OPENAI_MODEL&&env.WORDLY_USER&&env.WORDLY_PASSWORD);
+ const ready=()=>Boolean(env.GEMINI_API_KEY&&env.GEMINI_FREE_TIER_CONFIRMED==='true'&&env.WORDLY_USER&&env.WORDLY_PASSWORD);
  const json=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));};
  return http.createServer(async(req,res)=>{
  try{
@@ -64,12 +64,13 @@ export function makeServer({env=process.env,fetchImpl=fetch,root=new URL('./',im
    if(times.length>=10||daily>=Number(env.WORDLY_DAILY_LIMIT||200)||active>=3) return json(res,429,{error:'Limite temporário atingido. Aguarde um pouco.'});
    times.push(now);rate.set(ip,times);daily++;active++;
    try{
-    const result=await fetchImpl('https://api.openai.com/v1/chat/completions',{
-     method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+env.OPENAI_API_KEY},
-     body:JSON.stringify({model:env.OPENAI_MODEL,store:false,max_completion_tokens:1024,messages:[{role:'developer',content:promptFor(teacher,level,humor,scene)},...messages]}),
+    const result=await fetchImpl('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',{
+     method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+env.GEMINI_API_KEY},
+     body:JSON.stringify({model:'gemini-3.6-flash',reasoning_effort:'low',messages:[{role:'system',content:promptFor(teacher,level,humor,scene)},...messages]}),
      signal:AbortSignal.timeout(30000)
     });
-    if(!result.ok) return json(res,502,{error:'A IA online não respondeu. Confira o modelo, a chave e o saldo da API no Render.'});
+    if(result.status===429) return json(res,429,{error:'A cota gratuita do Gemini foi atingida. Aguarde a renovação. Nenhum serviço alternativo será acionado.'});
+    if(!result.ok) return json(res,502,{error:'Não consegui conectar ao Gemini gratuito. Confira a chave e o acesso ao modelo no AI Studio.'});
     const data=await result.json(),raw=data.choices?.[0]?.message?.content;
     if(typeof raw!=='string'||!raw.trim()||data.choices?.[0]?.finish_reason==='length') return json(res,502,{error:'A resposta veio vazia ou incompleta. Tente novamente.'});
     return json(res,200,{raw});
