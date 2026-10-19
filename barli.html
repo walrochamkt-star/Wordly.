@@ -149,7 +149,7 @@ html,body{height:100%;overflow:hidden}
     <select id="model">
       <option value="Llama-3.2-3B-Instruct-q4f16_1-MLC">Normal: mais esperto (baixa 2,3 GB na primeira vez)</option>
       <option value="gemma-2-2b-it-q4f16_1-MLC">Médio: Gemma 2B (1,9 GB)</option>
-      <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Leve: para computador mais fraco (0,9 GB)</option>
+      <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC" selected>Leve: para computador mais fraco (0,9 GB)</option>
     </select>
     <button class="big" id="start">Acordar o Bärli</button>
     <div class="bar hidden" id="barWrap"><i id="bar"></i></div>
@@ -358,7 +358,7 @@ let restarts = 0, stopGuard = null, finished = true;
 const wait = ms => new Promise(r => setTimeout(r, ms));
 async function startListening(){
   if(!SR){ toast("Seu navegador não reconhece voz. Use o Google Chrome, ou escreva na caixa ao lado."); return; }
-  if(thinking || !engine){ toast("Espere um pouquinho, ainda estou pensando na resposta."); return; }
+  if(busy || !engine){ toast("Espere um pouquinho, ainda estou pensando na resposta."); return; }
   stopSpeaking(); hideToast();
   if(!(await ensureMic())) return;
   await wait(150); // deixa a voz do professor parar antes de abrir o microfone
@@ -428,7 +428,7 @@ $("mic").onclick = () => {
   clearTimeout(stopGuard);
   stopGuard = setTimeout(() => { try{ rec.abort(); }catch(_){} finishListening(); }, 1500);
 };
-$("typeForm").onsubmit = e => { e.preventDefault(); const t = $("typeIn").value.trim(); if(t){ $("typeIn").value=""; send(t); } };
+$("typeForm").onsubmit = e => { e.preventDefault(); if(busy || !engine) return; const t = $("typeIn").value.trim(); if(t){ $("typeIn").value=""; send(t); } };
 
 /* ---------- Conversa ---------- */
 function esc(s){ return s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
@@ -501,35 +501,37 @@ async function ask(messages, temperature){
       if(m && m[1].trim()){
         const es = m[1].trim();
         bubble = addTeacher({ es, pt: "", tip: "" });
-        thinking = false; $("mic").disabled = false;
+        $("mic").disabled = true;
         speaking = speak(es);
       }
     }
   }
   }catch(e){
-    thinking = false; $("mic").disabled = false;
+    $("mic").disabled = true;
     if(!bubble) throw new Error("a IA não conseguiu responder (" + e.message + ")");
     // A primeira frase já saiu: mantém o que chegou e segue a conversa.
   }
+  if(!raw.trim()) throw new Error("a IA não retornou uma resposta. Abra Ajustes e tente acordar o professor com o cérebro Leve");
   const p = parse(raw);
   if(bubble){ p.es = bubble.dataset.es; fillTeacher(bubble, p); }
-  else { addTeacher(p); thinking = false; $("mic").disabled = false; speaking = speak(p.es); }
+  else { addTeacher(p); $("mic").disabled = true; speaking = speak(p.es); }
   return { raw, speaking };
 }
 
 async function send(text){
-  if(thinking || !engine) return;
+  if(busy || !engine) return;
   busy = true; thinking = true; $("mic").disabled = true;
   stopSpeaking();
   addMe(text);
   history.push({ role:"user", content:text });
   setStatus("think", "Bärli pensando");
   try{
-    const msgs = [{ role:"system", content: systemPrompt() }, ...history.slice(-8)];
+    const msgs = [{ role:"system", content: systemPrompt() }, ...history.slice(-7)];
     const { raw, speaking } = await ask(msgs, 0.8);
     history.push({ role:"assistant", content: raw });
     await speaking;
   }catch(e){
+    history.pop();
     toast("O Bärli engasgou: " + e.message);
     setStatus("", "Sua vez");
   }
@@ -561,15 +563,15 @@ function loadOnce(modelId, appConfig, label){
       $("bar").style.width = Math.round((p.progress || 0) * 100) + "%";
       $("loadText").textContent = label + "Carregando o cérebro do Bärli: " + Math.round((p.progress||0)*100) + "%. Na primeira vez demora alguns minutos.";
     }
-  });
+  }, { context_window_size: 2048 });
   return Promise.race([loading, stalled]).finally(() => clearInterval(watchdog));
 }
 async function loadBrain(chosen){
   const appConfig = { ...webllm.prebuiltAppConfig, cacheBackend: (typeof caches !== "undefined") ? "cache" : "indexeddb" };
   const f16 = await gpuSupportsF16();
   const f32 = id => id.replace("q4f16_1", "q4f32_1");
-  const light = "Llama-3.2-1B-Instruct-q4f32_1-MLC";
-  const plan = [...new Set(f16 ? [chosen, f32(chosen), light] : [f32(chosen), light])];
+  const light = "Llama-3.2-1B-Instruct-" + (f16 ? "q4f16_1" : "q4f32_1") + "-MLC";
+  const plan = [...new Set(f16 ? [chosen, light, f32(light)] : [f32(chosen), light])];
   const known = new Set((appConfig.model_list || []).map(m => m.model_id));
   let lastErr = null;
   for(let i = 0; i < plan.length; i++){
@@ -655,7 +657,7 @@ $("closeHistory").onclick = () => $("historySheet").classList.add("hidden");
 $("historySheet").onclick = e => { if(e.target.id === "historySheet") $("historySheet").classList.add("hidden"); };
 
 /* Mudar humor, nível ou cena no meio recomeça a conversa */
-["level","humor","scene"].forEach(id => $(id).onchange = () => { if(engine && !thinking){ stopSpeaking(); greet(); } });
+["level","humor","scene"].forEach(id => $(id).onchange = () => { if(engine && !busy){ stopSpeaking(); greet(); } });
 </script>
 </body>
 </html>
