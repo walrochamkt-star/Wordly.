@@ -59,8 +59,7 @@ test('preserves explicit student name beyond bounded recent context, accepts cor
  assert.equal(rememberedName([...messages,{role:'user',content:'Pode me chamar de Ana.'}]),'Ana');
  assert.equal(rememberedName([...messages,{role:'user',content:"Como digo 'meu nome é Ana' em espanhol?"}]),'Wal');
 });
-test('light mode selects the smaller model explicitly and compatibility checks do not download it',async()=>{
- const deps=mock(),tutor=await createLocalTutor({teacher:'torito',profile:'light',...deps});
- assert.match(deps.calls[0].id,/1\.7B/);tutor.close();
+test('compatibility checks do not download the model and warn about reported low memory',async()=>{
+ const deps=mock();
  const report=await checkLocalSupport({gpu:deps.gpu,deviceMemory:4});assert.equal(report.ok,true);assert.match(report.message,/pouca memória/);
 });

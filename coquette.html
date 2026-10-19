@@ -146,7 +146,7 @@ html,body{height:100%;overflow:hidden}
       <option value="travel">Chegando em Paris (aeroporto e hotel)</option>
     </select>
     <label for="model">Onde o professor pensa</label>
-    <select id="model"><option value="local" selected>No meu aparelho — sem cota diária</option><option value="local-light">No meu aparelho, leve — sem cota diária</option><option value="online">Gemini online — sujeito à cota gratuita</option></select>
+    <select id="model"><option value="local" selected>No meu aparelho — sem cota diária</option><option value="online">Gemini online — sujeito à cota gratuita</option></select>
     <button class="big" id="start">Acordar a Coquette</button>
     <button class="chip hidden" id="cancelLoad">Cancelar download</button>
     <div class="bar hidden" id="barWrap"><i id="bar"></i></div>
@@ -527,7 +527,7 @@ async function describeMode(){
   const check = ++modeCheck;
   $("compatibility").textContent = "";
   $("loadText").textContent = $("model").value.startsWith("local")
-    ? "Sem cota diária de IA. Ao iniciar, baixa o modelo e usa a GPU do seu aparelho. A opção leve ocupa menos espaço, mas pode errar mais. Pode levar vários minutos; o navegador tenta guardar o modelo para as próximas visitas. Requer WebGPU e memória disponível. A qualidade e a velocidade variam. A voz é sintetizada."
+    ? "Sem cota diária de IA. Ao iniciar, baixa o modelo e usa a GPU do seu aparelho. Pode levar vários minutos; o navegador tenta guardar o modelo para as próximas visitas. Requer WebGPU e memória disponível. A qualidade e a velocidade variam. A voz é sintetizada."
     : "Usa o Gemini gratuito. As cotas do Google continuam valendo. A voz é sintetizada.";
   if($("model").value.startsWith("local")){
     try{
@@ -547,7 +547,7 @@ $("start").onclick = async () => {
       $("barWrap").classList.remove("hidden"); $("cancelLoad").classList.remove("hidden");
       setStatus("think", "Carregando no seu aparelho");
       const {createLocalTutor} = await import("/local-ai.mjs");
-      engine = await createLocalTutor({teacher:"coquette",profile:$("model").value === "local-light" ? "light" : "balanced",signal:loadController.signal,onProgress:p=>{
+      engine = await createLocalTutor({teacher:"coquette",signal:loadController.signal,onProgress:p=>{
         const pct=Math.round(Math.max(0,Math.min(1,p.progress||0))*100);
         $("bar").style.width=pct+"%";
         $("loadText").textContent="Preparando o professor no seu aparelho: "+pct+"%. Na primeira vez pode levar vários minutos.";

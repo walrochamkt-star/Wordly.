@@ -6,7 +6,7 @@ export async function checkLocalSupport({gpu=globalThis.navigator?.gpu,deviceMem
  try{
   const adapter=await gpu.requestAdapter();
   if(!adapter) return {ok:false,message:'Nenhuma GPU compatível foi encontrada. O download do modelo não será iniciado.'};
-  return {ok:true,adapter,message:deviceMemory&&deviceMemory<=4?'A GPU está disponível, mas este aparelho pode ter pouca memória. Prefira o modo leve e feche outras abas.':'GPU detectada. O carregamento ainda depende da memória disponível no aparelho.'};
+  return {ok:true,adapter,message:deviceMemory&&deviceMemory<=4?'A GPU está disponível, mas este aparelho pode ter pouca memória. Feche outras abas; o modo local pode não caber na memória.':'GPU detectada. O carregamento ainda depende da memória disponível no aparelho.'};
  }catch{return {ok:false,message:'Não consegui verificar a GPU. Feche outras abas e tente novamente.'};}
 }
 export function rememberedName(messages){
@@ -34,7 +34,7 @@ export function normalizeLocalReply(teacher,raw){
  if(data.language==='target') answer='[['+answer.replace(/\[\[|\]\]/g,'')+']]';
  return teachers[teacher].label+': '+answer+'\nTRADUCAO: '+(data.language==='target'?line(data.translation)||'-':'-')+'\nDICA: '+(line(data.tip)||'-');
 }
-export async function createLocalTutor({teacher,profile='balanced',signal,onProgress=()=>{},gpu=globalThis.navigator?.gpu,loadLibrary=()=>import(WEBLLM_URL),makeWorker=()=>new Worker('/local-worker.mjs',{type:'module'})}){
+export async function createLocalTutor({teacher,signal,onProgress=()=>{},gpu=globalThis.navigator?.gpu,loadLibrary=()=>import(WEBLLM_URL),makeWorker=()=>new Worker('/local-worker.mjs',{type:'module'})}){
  if(!Object.hasOwn(teachers,teacher)) throw Error('Professor inválido.');
  const cancelled=()=>{if(signal?.aborted) throw Error('Download cancelado. Você pode tentar novamente.');};
  cancelled();
@@ -43,9 +43,7 @@ export async function createLocalTutor({teacher,profile='balanced',signal,onProg
  if(!support.ok) throw Error(support.message);
  const adapter=support.adapter;
  cancelled();
- if(!['balanced','light'].includes(profile)) throw Error('Modo local inválido.');
- const size=profile==='light'?'1.7B':'4B';
- const modelId='Qwen3-'+size+'-'+(adapter.features.has('shader-f16')?'q4f16_1':'q4f32_1')+'-MLC';
+ const modelId='Qwen3-4B-'+(adapter.features.has('shader-f16')?'q4f16_1':'q4f32_1')+'-MLC';
  const lib=await loadLibrary();
  cancelled();
  if(!lib.prebuiltAppConfig.model_list.some(m=>m.model_id===modelId)) throw Error('O modelo local não está disponível nesta versão.');

@@ -52,6 +52,6 @@ Criar chave gratuita: https://aistudio.google.com/apikey . Fazer a criação e e
 
 ## Conversa local, pronúncia e compatibilidade
 
-O modo local principal usa Qwen3 4B. A opção leve usa Qwen3 1.7B e permanece uma escolha manual; não há garantia de qualidade equivalente. Antes do download, a interface consulta a disponibilidade de WebGPU e dá avisos para aparelhos com pouca memória reportada pelo navegador. Isso não é certificação de compatibilidade de todos os celulares.
+O modo local principal usa Qwen3 4B. Qwen3 1.7B foi comparado no navegador e rejeitado: respondeu em português ao ser solicitado a traduzir bom dia para espanhol. Por isso o modelo principal não foi substituído e não há opção leve na interface. Antes do download, a interface consulta a disponibilidade de WebGPU e dá avisos para aparelhos com pouca memória reportada pelo navegador. Isso não é certificação de compatibilidade de todos os celulares.
 
 Respostas locais usam JSON com idioma principal explícito, convertido para a apresentação do Wordly. Frases no idioma alvo recebem marcação mesmo que o modelo omita os colchetes; português e idioma alvo continuam com vozes separadas. A declaração do idioma depende do modelo. Nomes explicitamente informados pelo aluno são preservados como contexto durante a sessão, além das últimas mensagens; não são salvos em disco. A memória do restante da conversa continua limitada pelo contexto do modelo.
