@@ -12,6 +12,7 @@ test('public server forwards conversation and private instructions; never expose
  assert.equal((await fetch(base+'/')).status,200);
  assert.equal((await fetch(base+'/torito.html')).status,200);
  const config=await fetch(base+'/api/config',{});assert.deepEqual(await config.json(),{ready:true});
+ for(const path of ['local-ai.mjs','local-worker.mjs','tutor-prompt.mjs']){const module=await fetch(base+'/'+path);assert.equal(module.status,200);assert.match(module.headers.get('content-type'),/javascript/);}
  const r=await request(base,body);assert.equal(r.status,200);assert.match((await r.json()).raw,/Buenos días/);
  assert.equal(called.url,'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions');
  const sent=JSON.parse(called.init.body);assert.equal(sent.model,'gemini-3.6-flash');assert.equal(sent.reasoning_effort,'low');assert.equal(sent.messages[0].role,'system');assert.deepEqual(sent.messages.at(-1),body.messages[0]);
@@ -42,7 +43,7 @@ test('bounds API use and protects every teacher with consistent language instruc
   const html=await readFile(new URL(`../${key}.html`,import.meta.url),'utf8');
   const script=html.match(/<script type="module">([\s\S]*?)<\/script>/)[1];
   const {Script}=await import('node:vm');new Script(script);
-  assert.match(script,/fetch\("\/api\/chat"/);assert.doesNotMatch(script,/CreateMLCEngine|WEBLLM_URL|OPENAI_API_KEY/);
+  assert.match(script,/fetch\("\/api\/chat"/);assert.doesNotMatch(script,/OPENAI_API_KEY/);
  }
 });
 

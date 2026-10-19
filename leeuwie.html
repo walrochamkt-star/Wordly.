@@ -145,9 +145,10 @@ html,body{height:100%;overflow:hidden}
       <option value="meet">Procurando apartamento para morar</option>
       <option value="travel">Chegando em Amsterdã (aeroporto e hotel)</option>
     </select>
-    <label for="model">Conversa online</label>
-    <select id="model"><option value="online">Professor conectado</option></select>
+    <label for="model">Onde o professor pensa</label>
+    <select id="model"><option value="local" selected>No meu aparelho — sem cota diária</option><option value="online">Gemini online — sujeito à cota gratuita</option></select>
     <button class="big" id="start">Acordar o Leeuwie</button>
+    <button class="chip hidden" id="cancelLoad">Cancelar download</button>
     <div class="bar hidden" id="barWrap"><i id="bar"></i></div>
     <div class="small" id="loadText">Converse por texto ou voz. A voz do professor é sintetizada.</div>
     <div class="warn hidden" id="err"></div>
@@ -188,6 +189,7 @@ html,body{height:100%;overflow:hidden}
 
 
 const $ = id => document.getElementById(id);
+let loadController = null;
 let engine = null, history = [], busy = false, thinking = false;
 
 function systemPrompt(){ return ""; }
@@ -476,14 +478,19 @@ function parse(raw){
 
 /* Resposta curta do servidor, com voz no idioma de cada trecho. */
 async function ask(messages){
+  let data;
+  if(engine.complete){
+    data = {raw:await engine.complete(messages, {level:$("level").value,humor:$("humor").value,scene:$("scene").value})};
+  }else{
   const response = await fetch("/api/chat", {
     method: "POST", headers: {"Content-Type":"application/json"},
     body: JSON.stringify({teacher:"leeuwie",level:$("level").value,humor:$("humor").value,scene:$("scene").value,
       messages:messages.filter(m => m.role !== "system")}),
     signal: AbortSignal.timeout(35000)
   });
-  const data = await response.json();
+  data = await response.json();
   if(!response.ok) throw new Error(data.error || "Não consegui conversar agora.");
+  }
   const p = parse(data.raw);
   if(!p.es) throw new Error("O professor não retornou uma resposta.");
   addTeacher(p);
@@ -514,22 +521,40 @@ async function send(text){
 function alertBox(msg){ $("err").textContent = msg; $("err").classList.remove("hidden"); $("setup").classList.remove("hidden"); }
 
 /* Conecta ao servidor; a chave da API nunca vai para o navegador. */
-$("loadText").textContent = "Converse por texto ou voz. A voz do professor é sintetizada.";
+function describeMode(){
+  $("loadText").textContent = $("model").value === "local"
+    ? "Sem cota diária de IA. Ao iniciar, baixa alguns GB e usa a GPU do seu aparelho. Pode levar vários minutos; o navegador tenta guardar o modelo para as próximas visitas. Requer WebGPU e memória disponível. A qualidade e a velocidade variam. A voz é sintetizada."
+    : "Usa o Gemini gratuito. As cotas do Google continuam valendo. A voz é sintetizada.";
+}
+$("model").onchange = describeMode; describeMode();
+$("cancelLoad").onclick = () => loadController?.abort();
 $("start").onclick = async () => {
   $("start").disabled = true; $("err").classList.add("hidden");
+  loadController = new AbortController();
   try{
+    if($("model").value === "local"){
+      $("barWrap").classList.remove("hidden"); $("cancelLoad").classList.remove("hidden");
+      setStatus("think", "Carregando no seu aparelho");
+      const {createLocalTutor} = await import("/local-ai.mjs");
+      engine = await createLocalTutor({teacher:"leeuwie",signal:loadController.signal,onProgress:p=>{
+        const pct=Math.round(Math.max(0,Math.min(1,p.progress||0))*100);
+        $("bar").style.width=pct+"%";
+        $("loadText").textContent="Preparando o professor no seu aparelho: "+pct+"%. Na primeira vez pode levar vários minutos.";
+      }});
+    }else{
     const response = await fetch("/api/config", {signal:AbortSignal.timeout(15000)});
     if(!response.ok) throw new Error("Não consegui conectar ao professor. Confira o acesso ao Wordly.");
     const config = await response.json();
     if(!config.ready) throw new Error("A IA online ainda não foi configurada no Render.");
     engine = {};
+    }
     $("setup").classList.add("hidden"); $("start").classList.add("hidden");
     $("model").disabled = true;
     $("settingsBtn").classList.remove("hidden"); $("historyBtn").classList.remove("hidden"); $("closeSetup").classList.remove("hidden");
     $("caption").classList.remove("hidden"); $("controls").classList.remove("hidden");
     await greet();
   }catch(e){ alertBox(e.message); setStatus("", "Esperando"); }
-  finally{ $("start").disabled = false; }
+  finally{ loadController = null; $("start").disabled = false; $("cancelLoad").classList.add("hidden"); $("barWrap").classList.add("hidden"); }
 };
 
 async function greet(){

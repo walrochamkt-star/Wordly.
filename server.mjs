@@ -2,35 +2,9 @@ import http from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 
-export const teachers = {
- torito:{name:'Torito',label:'TORITO',language:'Spanish from Spain'},
- coquette:{name:'Coquette',label:'COQUETTE',language:'French from France'},
- barli:{name:'Bärli',label:'BAERLI',language:'German'},
- lupino:{name:'Lupino',label:'LUPINO',language:'Italian'},
- leeuwie:{name:'Leeuwie',label:'LEEUWIE',language:'Dutch from the Netherlands'}
-};
-const scenes={free:'Free conversation. Follow the topic chosen by the student.',bar:'Ordering at a café or bar.',restaurant:'Ordering food at a restaurant.',meet:'Meeting someone.',travel:'At the airport and hotel.'};
-export function promptFor(teacher,level,humor,scene){
- const t=teachers[teacher];
- if(!Object.hasOwn(teachers,teacher)) throw Error('Professor inválido.');
- const levelRule=level==='A1'
- ? `Explain in Brazilian Portuguese. Put only ${t.language} phrases inside [[double brackets]]. Teach one short phrase at a time, but first answer what the student actually asked. Do not force a lesson when they asked something else. TRADUCAO must be - when your main line is in Portuguese.`
- : `Speak ${t.language} at CEFR ${level}. Translate your main line accurately into Brazilian Portuguese in TRADUCAO.`;
- const mood=humor==='sweet'?'Warm, patient and friendly. No swearing.':humor==='spicy'?'Warm and lightly playful. Humor must never distract from the question.':'Expressive and playful, but keep answers clear and relevant.';
- return `You are ${t.name}, a conversational ${t.language} tutor for adult Brazilians.
-Priority 1: understand and answer the student's latest question directly. Use the preceding conversation to resolve references and retain their name and topic. Do not restart, greet again or change topics without a reason.
-Priority 2: linguistic accuracy. Give the correct translation or correction when asked. If uncertain, say so. Do not invent grammar rules or mistranslations. Never ridicule the student or make assumptions about their identity.
-${levelRule}
-${mood}
-Optional setting: ${scenes[scene]||scenes.free} The student's question overrides the setting. At most one relevant follow-up question, only when natural. Do not force one in every response.
-Use natural spoken language, not a lesson template. Match the student's tone and requested language. Avoid repeated praise, repeated greetings and unnecessary follow-up questions.
-Default to 1-2 short sentences (about 45 words maximum for the spoken answer). Give more detail only when requested or necessary for accuracy. DICA must be - unless there is a useful correction; do not repeat the main answer there.
-Return exactly three lines:
-${t.label}: <the spoken answer>
-TRADUCAO: <Brazilian Portuguese translation, or ->
-DICA: <one relevant language correction, only when useful, or ->`;
-}
-const publicPaths=new Set(['index.html',...Object.keys(teachers).map(t=>t+'.html')]);
+import {teachers,promptFor} from './tutor-prompt.mjs';
+export {teachers,promptFor} from './tutor-prompt.mjs';
+const publicPaths=new Set(['local-ai.mjs','local-worker.mjs','tutor-prompt.mjs','index.html',...Object.keys(teachers).map(t=>t+'.html')]);
 export function makeServer({env=process.env,fetchImpl=fetch,root=new URL('./',import.meta.url),clock=Date.now}={}){
  let active=0; const rate=new Map();
  const ready=()=>Boolean(env.GEMINI_API_KEY&&env.GEMINI_FREE_TIER_CONFIRMED==='true');
@@ -90,7 +64,7 @@ export function makeServer({env=process.env,fetchImpl=fetch,root=new URL('./',im
   const path=url.pathname==='/'?'index.html':url.pathname.slice(1);
   if(!publicPaths.has(path)) return json(res,404,{error:'Página não encontrada.'});
   const html=await readFile(new URL(path,root));
-  res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-cache'});res.end(req.method==='HEAD'?undefined:html);
+  res.writeHead(200,{'Content-Type':path.endsWith('.mjs')?'text/javascript; charset=utf-8':'text/html; charset=utf-8','Cache-Control':'no-cache'});res.end(req.method==='HEAD'?undefined:html);
  }catch{if(!res.headersSent)json(res,500,{error:'Não foi possível concluir a solicitação.'});else res.end();}
  });
 }
