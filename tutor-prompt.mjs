@@ -9,7 +9,9 @@ const scenes={free:'Free conversation. Follow the topic chosen by the student.',
 export function promptFor(teacher,level,humor,scene){
  const t=teachers[teacher];
  if(!Object.hasOwn(teachers,teacher)) throw Error('Professor inválido.');
- const levelRule=level==='A1'
+ const levelRule=teacher==='torito'
+ ? `Your spoken answer must be entirely in Spanish from Spain at CEFR ${level}. Put the Spanish answer inside [[double brackets]]. Brazilian Portuguese belongs only in TRADUCAO, never in the spoken answer. Even if the student asks in Portuguese, answer in Spanish and provide the Portuguese translation.`
+ : level==='A1'
  ? `Explain in Brazilian Portuguese. Put only ${t.language} phrases inside [[double brackets]]. Teach one short phrase at a time, but first answer what the student actually asked. Do not force a lesson when they asked something else. TRADUCAO must be - when your main line is in Portuguese.`
  : `Speak ${t.language} at CEFR ${level}. Translate your main line accurately into Brazilian Portuguese in TRADUCAO.`;
  const mood=humor==='sweet'?'Warm, patient and friendly. No swearing.':humor==='spicy'?'Warm and lightly playful. Humor must never distract from the question.':'Expressive and playful, but keep answers clear and relevant.';

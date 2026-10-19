@@ -55,3 +55,11 @@ Criar chave gratuita: https://aistudio.google.com/apikey . Fazer a criação e e
 O modo local principal usa Qwen3 4B. Qwen3 1.7B foi comparado no navegador e rejeitado: respondeu em português ao ser solicitado a traduzir bom dia para espanhol. Por isso o modelo principal não foi substituído e não há opção leve na interface. Antes do download, a interface consulta a disponibilidade de WebGPU e dá avisos para aparelhos com pouca memória reportada pelo navegador. Isso não é certificação de compatibilidade de todos os celulares.
 
 Respostas locais usam JSON com idioma principal explícito, convertido para a apresentação do Wordly. Frases no idioma alvo recebem marcação mesmo que o modelo omita os colchetes; português e idioma alvo continuam com vozes separadas. A declaração do idioma depende do modelo. Nomes explicitamente informados pelo aluno são preservados como contexto durante a sessão, além das últimas mensagens; não são salvos em disco. A memória do restante da conversa continua limitada pelo contexto do modelo.
+
+## Voz do Torito
+
+Torito usa por padrão Piper com a voz espanhola fixa `es_ES-davefx-medium`, executada no navegador em Web Worker. O primeiro uso baixa modelo e arquivos WASM; os dados de voz ficam sujeitos ao cache/armazenamento do navegador. A voz é sintetizada, não uma gravação humana nem uma promessa de naturalidade indistinguível. Testar voz funciona antes de carregar o modelo de conversa.
+
+O modo alternativo só aceita vozes espanholas com identidade masculina conhecida pelo nome. Se nenhuma estiver disponível, avisa em vez de escolher uma voz feminina ou portuguesa. Não se modifica o pitch para simular gênero. O áudio do Torito é espanhol, inclusive no A1; a tradução portuguesa permanece no texto. Explicações locais em português fora dos trechos marcados não são narradas.
+
+Runtime: https://github.com/Mintplex-Labs/piper-tts-web (MIT), fixado em 1.0.3. Voz: https://huggingface.co/rhasspy/piper-voices/tree/main/es/es_ES/davefx/medium (consultar MODEL_CARD; conjunto de dados CC0). Downloads do runtime: jsDelivr/cdnjs. Modelo servido pelo espelho diffusionstudio/piper-voices usado pela biblioteca. A síntese não usa API paga nem envia o texto a um serviço de TTS.

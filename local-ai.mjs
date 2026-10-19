@@ -24,7 +24,7 @@ export function localMessages(teacher,settings,messages){
  const name=rememberedName(messages);
  const t=teachers[teacher];
  const level=settings.level||'A1';
- const levelRule=level==='A1'?`Explain in Brazilian Portuguese; wrap ${t.language} phrases in [[brackets]]. When asked for a translation, give the actual ${t.language} phrase.`:`Speak ${t.language} at CEFR ${level}; translate into Brazilian Portuguese.`;
+ const levelRule=teacher==='torito'?`Speak entirely in Spanish from Spain at CEFR ${level}, even when the student asks in Portuguese. The spoken answer must not contain Portuguese. Provide Brazilian Portuguese only in translation, set language to target.`:level==='A1'?`Explain in Brazilian Portuguese; wrap ${t.language} phrases in [[brackets]]. When asked for a translation, give the actual ${t.language} phrase.`:`Speak ${t.language} at CEFR ${level}; translate into Brazilian Portuguese.`;
  const scene={bar:'ordering drinks',restaurant:'ordering food',meet:'meeting someone',travel:'airport and hotel'}[settings.scene]||'free conversation';
  const mood=settings.humor==='sweet'?'Be patient; no swearing.':'Be friendly and lightly playful; never distract from the question.';
  const base=`You are ${t.name}, a ${t.language} tutor for Brazilian adults. Answer the latest question directly and accurately. Use history to retain names and topic. Never restart, greet again, invent grammar or change topic without reason. ${levelRule} ${mood} Optional scene: ${scene}; the latest student question overrides it. Ask a follow-up only when useful.`;

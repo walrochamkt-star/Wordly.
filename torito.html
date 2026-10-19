@@ -145,6 +145,11 @@ html,body{height:100%;overflow:hidden}
       <option value="meet">Conhecendo alguém numa festa</option>
       <option value="travel">Chegando em Madri (aeroporto e hotel)</option>
     </select>
+    <label for="toritoVoice">Voz do Torito — espanhol</label>
+    <select id="toritoVoice"><option value="piper" selected>Piper — Davefx (voz espanhola fixa)</option><option value="native">Voz masculina espanhola do navegador</option></select>
+    <button class="chip" type="button" id="testToritoVoice">Testar voz</button>
+    <button class="chip" type="button" id="stopToritoVoice">Parar voz</button>
+    <div class="small" id="voiceStatus" role="status">Piper é gratuito e roda no aparelho. O primeiro uso baixa os arquivos de voz. A tradução em português fica no botão Tradução.</div>
     <label for="model">Onde o professor pensa</label>
     <select id="model"><option value="local" selected>No meu aparelho — sem cota diária</option><option value="online">Gemini online — sujeito à cota gratuita</option></select>
     <button class="big" id="start">Acordar o Torito</button>
@@ -220,25 +225,6 @@ function mouth(on){
 }
 
 /* ---------- Voz do Torito (voz gratuita do navegador) ---------- */
-let voice = null;
-/* Uma voz só por professor. De preferência uma voz "Multilingual" (Microsoft Edge),
-   que fala português e o idioma ensinado com o mesmo timbre. Sem ela, usa a voz nativa para tudo. */
-function nativeVoice(){
-  const vs = speechSynthesis.getVoices().filter(v => /^es/i.test(v.lang));
-  return vs.find(v => /es-ES/i.test(v.lang) && /google/i.test(v.name))
-       || vs.find(v => /es-ES/i.test(v.lang) && /(jorge|pablo|alvaro|álvaro|enrique|male|hombre)/i.test(v.name))
-       || vs.find(v => /es-ES/i.test(v.lang)) || vs[0] || null;
-}
-function bestVoice(lang){
-  const base = lang.split("-")[0].toLowerCase();
-  const vs = speechSynthesis.getVoices().filter(v => v.lang.toLowerCase().split("-")[0] === base);
-  const score = v => (/natural|neural|online|premium|enhanced/i.test(v.name) ? 100 : 0)
-    + (/google/i.test(v.name) ? 50 : 0) + (v.lang.toLowerCase() === lang.toLowerCase() ? 20 : 0);
-  return vs.sort((a,b) => score(b) - score(a))[0] || null;
-}
-function pickVoice(){ voice = bestVoice("es-ES") || nativeVoice(); }
-speechSynthesis.onvoiceschanged = pickVoice; pickVoice();
-
 const SPEEDS = [0.85, 1.0, 1.15, 1.3, 1.5];
 let speechRate = 1.0;
 try{ const saved = parseFloat(localStorage.getItem("speechRate")); if(SPEEDS.includes(saved)) speechRate = saved; }catch(_){}
@@ -250,54 +236,78 @@ $("speed").onclick = () => {
   showSpeed();
 };
 /* Texto com [[palavras no idioma]]: o português sai com voz brasileira e o idioma novo com voz nativa. */
-function speechChunks(text){
-  const out = [];
-  const hasMarks = /\[\[/.test(text);
-  text.split(/(\[\[[^\]]*\]\])/).forEach(seg => {
-    if(!seg) return;
-    const isTarget = /^\[\[/.test(seg);
-    const clean = seg.replace(/^\[\[|\]\]$/g, "").trim();
-    if(!clean) return;
-    const pt = !isTarget && (hasMarks || $("level").value === "A1");
-    const parts = clean.match(/[^.!?¡¿]+[.!?]*|[¡¿][^.!?]+[.!?]*/g) || [clean];
-    parts.map(p => p.trim()).filter(p => /[\p{L}\d]/u.test(p)).forEach(p => out.push({ text: p, pt }));
-  });
-  return out;
-}
 function plain(text){ return (text || "").replace(/\[\[|\]\]/g, ""); }
 function richHTML(text){ return esc(text || "").replace(/\[\[(.*?)\]\]/g, '<span class="tl">$1</span>'); }
-let speakId = 0, settleSpeech = null;
-function stopSpeaking(){ speakId++; speechSynthesis.cancel(); mouth(false); if(settleSpeech){ settleSpeech(); settleSpeech = null; } }
+let speakId = 0, settleSpeech = null, voiceAbort = null, voiceAudio = null, voiceAudioUrl = null;
+let toritoVoiceApi = null, toritoSynth = null;
+async function loadToritoVoice(){
+  if(!toritoVoiceApi) toritoVoiceApi = await import('/torito-voice.mjs');
+  return toritoVoiceApi;
+}
+function stopSpeaking(){
+  speakId++;
+  voiceAbort?.abort(); voiceAbort = null;
+  speechSynthesis.cancel();
+  if(voiceAudio){ voiceAudio.onended = voiceAudio.onerror = null; voiceAudio.pause(); voiceAudio.src = ''; voiceAudio = null; }
+  if(voiceAudioUrl){ URL.revokeObjectURL(voiceAudioUrl); voiceAudioUrl = null; }
+  mouth(false);
+  if(settleSpeech){ settleSpeech(); settleSpeech = null; }
+}
 function speak(text){
+  stopSpeaking();
+  const myId = speakId;
   return new Promise(resolve => {
-    stopSpeaking();
-    const myId = speakId;
     settleSpeech = resolve;
-    const chunks = speechChunks(text);
-    if(!chunks.length) return resolve();
-    setStatus("talk", "Torito falando");
-    mouth(true);
-    let i = 0;
-    const finish = () => { if(myId !== speakId) return resolve(); settleSpeech = null; mouth(false); setStatus("", "Sua vez"); resolve(); };
-    const next = () => {
+    const finish = () => {
       if(myId !== speakId) return resolve();
-      if(i >= chunks.length) return finish();
-      const c = chunks[i++];
-      const u = new SpeechSynthesisUtterance(c.text);
-      const selectedVoice = c.pt ? bestVoice("pt-BR") : (bestVoice("es-ES") || voice);
-      u.lang = c.pt ? "pt-BR" : "es-ES";
-      if(selectedVoice) u.voice = selectedVoice;
-      u.rate = speechRate; u.pitch = 1.0;
-      let done = false;
-      const go = () => { if(done) return; done = true; clearTimeout(guard); next(); };
-      const guard = setTimeout(go, 2500 + u.text.length * 120);
-      u.onend = go; u.onerror = go;
-      speechSynthesis.resume();
-      speechSynthesis.speak(u);
+      voiceAbort = null; settleSpeech = null;
+      if(voiceAudioUrl){ URL.revokeObjectURL(voiceAudioUrl); voiceAudioUrl = null; }
+      voiceAudio = null;
+      mouth(false); setStatus('',engine ? 'Sua vez' : 'Esperando'); resolve();
     };
-    next();
+    (async()=>{
+      const api = await loadToritoVoice();
+      if(myId !== speakId) return resolve();
+      const spoken = api.spanishSpeechText(text,{requireMarks:Boolean(engine?.complete)});
+      if(!spoken){ $('voiceStatus').textContent='A explicação em português fica na tela; o Torito só lê os trechos em espanhol.'; return finish(); }
+      if($('toritoVoice').value === 'native'){
+        const selected = api.spanishMaleVoice(speechSynthesis.getVoices());
+        if(!selected) throw Error('Não encontrei uma voz masculina espanhola neste navegador. Escolha Piper nos ajustes de voz.');
+        $('voiceStatus').textContent='Voz: '+selected.name+' — '+selected.lang;
+        const u = new SpeechSynthesisUtterance(spoken);
+        u.lang='es-ES'; u.voice=selected; u.rate=speechRate; u.pitch=1;
+        u.onstart=()=>{ if(myId===speakId){setStatus('talk','Torito falando espanhol');mouth(true);} };
+        u.onend=finish; u.onerror=()=>{ if(myId===speakId) finish(); };
+        speechSynthesis.speak(u); return;
+      }
+      if(!toritoSynth) toritoSynth = api.createSpanishSynth();
+      voiceAbort = new AbortController();
+      setStatus('think','Preparando voz espanhola');
+      $('voiceStatus').textContent='Preparando Piper — Davefx, espanhol da Espanha. Na primeira vez há um download de voz.';
+      const wav = await toritoSynth.synthesize(spoken,{signal:voiceAbort.signal,onProgress:p=>{
+        if(myId===speakId && p.total>0) $('voiceStatus').textContent='Baixando voz espanhola: '+Math.round(p.loaded/p.total*100)+'%';
+      }});
+      if(myId !== speakId) return resolve();
+      voiceAbort = null;
+      voiceAudioUrl=URL.createObjectURL(wav);
+      const audio = new Audio(voiceAudioUrl); voiceAudio=audio;
+      audio.playbackRate=speechRate; audio.preservesPitch=true;
+      audio.onplaying=()=>{if(myId===speakId){$('voiceStatus').textContent='Voz: Piper — Davefx, espanhol da Espanha';setStatus('talk','Torito falando espanhol');mouth(true);}};
+      audio.onended=finish; audio.onerror=()=>{if(myId===speakId){toast('Não consegui reproduzir a voz. Toque em Ouvir de novo.');finish();}};
+      await audio.play();
+    })().catch(e=>{
+      if(myId !== speakId) return resolve();
+      $('voiceStatus').textContent=e.message;
+      toast(e.message); finish();
+    });
   });
 }
+$('testToritoVoice').onclick=()=>speak('[[Hola, soy Torito. Buenos días. ¿Cómo estás?]]');
+$('stopToritoVoice').onclick=()=>{stopSpeaking();setStatus('',engine?'Sua vez':'Esperando');};
+$('toritoVoice').onchange=()=>{
+  stopSpeaking();
+  $('voiceStatus').textContent=$('toritoVoice').value==='piper'?'Piper: voz espanhola fixa. O primeiro uso baixa os arquivos de voz.':'Só serão usadas vozes masculinas espanholas identificadas no aparelho.';
+};
 
 /* ---------- Ouvir o aluno (reconhecimento de voz do navegador) ---------- */
 /* Aperta Falar para começar e Terminei para enviar. */
@@ -571,7 +581,7 @@ $("start").onclick = async () => {
 async function greet(){
   stopSpeaking();
   history = []; $("log").innerHTML = ""; $("you").textContent = ""; setExtra("");
-  const p = { es: $("level").value === "A1" ? "Oi! Sou Torito, seu professor de espanhol. O que você quer conversar ou praticar hoje?" : "Hola, soy Torito. ¿De qué te gustaría hablar hoy?", pt:"", tip:"" };
+  const p = { es: "[[Hola, soy Torito, tu profesor de español. ¿De qué te gustaría hablar hoy?]]", pt:"Oi! Sou Torito, seu professor de espanhol. Sobre o que você gostaria de conversar hoje?", tip:"" };
   addTeacher(p);
   speak(p.es).catch(e => console.warn("[Wordly] voz", e));
 }

@@ -33,6 +33,7 @@ for(const file of ['torito','coquette','barli','lupino','leeuwie']) {
  vm.runInContext('finishListening()',ctx);
  const before=sessions.length; timers.forEach(fn=>fn());assert.equal(sessions.length,before);
  assert.deepEqual(sent,['primeira frase','segunda frase','terceira frase']);
+ if(file!=='torito'){
  const voices=[{name:'Microsoft Desktop',lang:'pt-BR'},{name:'Google português',lang:'pt-BR'},{name:'Microsoft Francisca Online (Natural)',lang:'pt-BR'},{name:'Unrelated Natural',lang:'en-US'}];
  ctx.speechSynthesis={getVoices:()=>voices};
  const choose=script.slice(script.indexOf('function bestVoice'),script.indexOf('function pickVoice'));
@@ -51,6 +52,7 @@ for(const file of ['torito','coquette','barli','lupino','leeuwie']) {
  vm.runInContext('speak("Uma frase. Outra frase."); stopSpeaking(); setStatus("listen","Ouvindo");',audio);
  utterances[0].onend();
  assert.equal(utterances.length,1);assert.deepEqual(statuses.at(-1),['listen','Ouvindo']);
+ }
  const greeting=script.slice(script.indexOf('async function greet()'),script.indexOf('$("settingsBtn").onclick'));
  assert.doesNotMatch(greeting,/await ask|fetch\(/);
  assert.doesNotMatch(script.slice(script.indexOf('/* Ajustes passam')),/greet\(/);
