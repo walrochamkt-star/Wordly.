@@ -35,7 +35,8 @@ test('missing configuration and provider failures have useful errors, no fake re
 });
 test('bounds API use and protects every teacher with consistent language instructions',async t=>{
  let calls=0;const base=await start(t,{env:{...env,WORDLY_DAILY_LIMIT:'1'},fetchImpl:async()=>{calls++;return Response.json({choices:[{finish_reason:'stop',message:{content:'TORITO: Hola\nTRADUCAO: Oi\nDICA: -'}}]});}});
- assert.equal((await request(base,body)).status,200);assert.equal((await request(base,body)).status,429);assert.equal(calls,1);
+ for(let i=0;i<10;i++) assert.equal((await request(base,body)).status,200);
+ assert.equal((await request(base,body)).status,429);assert.equal(calls,10);
  for(const key of Object.keys(teachers)){
   const prompt=promptFor(key,'A1','sweet','free');assert.match(prompt,/Explain in Brazilian Portuguese/);assert.doesNotMatch(prompt,/If the student writes in Portuguese, answer in/);
   const html=await readFile(new URL(`../${key}.html`,import.meta.url),'utf8');
@@ -59,4 +60,11 @@ test('retries transient unavailability once with the same provider',async t=>{
  assert.equal((await request(base,body)).status,200);assert.equal(calls,2);
  let failures=0;const failed=await start(t,{fetchImpl:async()=>{failures++;return Response.json({}, {status:503});}});
  assert.equal((await request(failed,body)).status,502);assert.equal(failures,2);
+});
+
+test('no application daily ceiling, even with legacy daily-limit environment',async t=>{
+ let now=Date.UTC(2026,9,19),calls=0;
+ const base=await start(t,{env:{...env,WORDLY_DAILY_LIMIT:'1'},clock:()=>now,fetchImpl:async()=>{calls++;return Response.json({choices:[{message:{content:'TORITO: Hola'}}]});}});
+ for(let i=0;i<250;i++){now+=61000;assert.equal((await request(base,body)).status,200);}
+ assert.equal(calls,250);
 });

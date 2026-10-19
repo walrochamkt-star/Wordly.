@@ -32,7 +32,7 @@ DICA: <one relevant language correction, only when useful, or ->`;
 }
 const publicPaths=new Set(['index.html',...Object.keys(teachers).map(t=>t+'.html')]);
 export function makeServer({env=process.env,fetchImpl=fetch,root=new URL('./',import.meta.url),clock=Date.now}={}){
- let active=0,day='',daily=0; const rate=new Map();
+ let active=0; const rate=new Map();
  const ready=()=>Boolean(env.GEMINI_API_KEY&&env.GEMINI_FREE_TIER_CONFIRMED==='true');
  const json=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));};
  return http.createServer(async(req,res)=>{
@@ -51,14 +51,12 @@ export function makeServer({env=process.env,fetchImpl=fetch,root=new URL('./',im
    const {teacher,level='A1',humor='sweet',scene='free',messages}=input;
    if(!Object.hasOwn(teachers,teacher)||!['A1','A2','B1'].includes(level)||!Array.isArray(messages)||!messages.length||messages.length>13) return json(res,400,{error:'Conversa inválida.'});
    if(messages.some((m,i)=>!m||m.role!==(i%2?'assistant':'user')||typeof m.content!=='string'||!m.content.trim()||m.content.length>1600)||messages.at(-1).role!=='user') return json(res,400,{error:'Histórico inválido.'});
-   const now=clock(),today=new Date(now).toISOString().slice(0,10);
-   if(day!==today){day=today;daily=0;}
+   const now=clock();
    const ip=req.socket.remoteAddress||'unknown';
    if(rate.size>10000) rate.clear();
    const times=(rate.get(ip)||[]).filter(t=>now-t<60000);
-   if(daily>=Number(env.WORDLY_DAILY_LIMIT||200)) return json(res,429,{error:'O limite diário gratuito do Wordly foi atingido. Ele renova à meia-noite UTC (21h de Brasília).'});
    if(times.length>=10||active>=3) return json(res,429,{error:'Há muitas mensagens agora. Aguarde um pouco e tente novamente.'});
-   times.push(now);rate.set(ip,times);daily++;active++;
+   times.push(now);rate.set(ip,times);active++;
    try{
     const signal=AbortSignal.timeout(30000);
     const requestProvider=()=>fetchImpl('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',{

@@ -11,5 +11,3 @@ services:
         sync: false
       - key: GEMINI_FREE_TIER_CONFIRMED
         value: "false"
-      - key: WORDLY_DAILY_LIMIT
-        value: "200"
