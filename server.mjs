@@ -23,7 +23,9 @@ Priority 2: linguistic accuracy. Give the correct translation or correction when
 ${levelRule}
 ${mood}
 Optional setting: ${scenes[scene]||scenes.free} The student's question overrides the setting. At most one relevant follow-up question, only when natural. Do not force one in every response.
-Use 2-3 concise sentences, with enough detail to answer. Return exactly three lines:
+Use natural spoken language, not a lesson template. Match the student's tone and requested language. Avoid repeated praise, repeated greetings and unnecessary follow-up questions.
+Default to 1-2 short sentences (about 45 words maximum for the spoken answer). Give more detail only when requested or necessary for accuracy. DICA must be - unless there is a useful correction; do not repeat the main answer there.
+Return exactly three lines:
 ${t.label}: <the spoken answer>
 TRADUCAO: <Brazilian Portuguese translation, or ->
 DICA: <one relevant language correction, only when useful, or ->`;
@@ -54,7 +56,8 @@ export function makeServer({env=process.env,fetchImpl=fetch,root=new URL('./',im
    const ip=req.socket.remoteAddress||'unknown';
    if(rate.size>10000) rate.clear();
    const times=(rate.get(ip)||[]).filter(t=>now-t<60000);
-   if(times.length>=10||daily>=Number(env.WORDLY_DAILY_LIMIT||200)||active>=3) return json(res,429,{error:'Limite temporário atingido. Aguarde um pouco.'});
+   if(daily>=Number(env.WORDLY_DAILY_LIMIT||200)) return json(res,429,{error:'O limite diário gratuito do Wordly foi atingido. Ele renova à meia-noite UTC (21h de Brasília).'});
+   if(times.length>=10||active>=3) return json(res,429,{error:'Há muitas mensagens agora. Aguarde um pouco e tente novamente.'});
    times.push(now);rate.set(ip,times);daily++;active++;
    try{
     const signal=AbortSignal.timeout(30000);

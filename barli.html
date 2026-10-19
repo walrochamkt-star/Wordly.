@@ -255,7 +255,7 @@ function speechChunks(text){
     const isTarget = /^\[\[/.test(seg);
     const clean = seg.replace(/^\[\[|\]\]$/g, "").trim();
     if(!clean) return;
-    const pt = hasMarks && !isTarget;
+    const pt = !isTarget && (hasMarks || $("level").value === "A1");
     const parts = clean.match(/[^.!?¡¿]+[.!?]*|[¡¿][^.!?]+[.!?]*/g) || [clean];
     parts.map(p => p.trim()).filter(p => /[\p{L}\d]/u.test(p)).forEach(p => out.push({ text: p, pt }));
   });
@@ -263,18 +263,19 @@ function speechChunks(text){
 }
 function plain(text){ return (text || "").replace(/\[\[|\]\]/g, ""); }
 function richHTML(text){ return esc(text || "").replace(/\[\[(.*?)\]\]/g, '<span class="tl">$1</span>'); }
-let speakId = 0;
-function stopSpeaking(){ speakId++; speechSynthesis.cancel(); mouth(false); }
+let speakId = 0, settleSpeech = null;
+function stopSpeaking(){ speakId++; speechSynthesis.cancel(); mouth(false); if(settleSpeech){ settleSpeech(); settleSpeech = null; } }
 function speak(text){
   return new Promise(resolve => {
-    const myId = ++speakId;
-    speechSynthesis.cancel();
+    stopSpeaking();
+    const myId = speakId;
+    settleSpeech = resolve;
     const chunks = speechChunks(text);
     if(!chunks.length) return resolve();
     setStatus("talk", "Bärli falando");
     mouth(true);
     let i = 0;
-    const finish = () => { mouth(false); setStatus("", "Sua vez"); resolve(); };
+    const finish = () => { if(myId !== speakId) return resolve(); settleSpeech = null; mouth(false); setStatus("", "Sua vez"); resolve(); };
     const next = () => {
       if(myId !== speakId) return resolve();
       if(i >= chunks.length) return finish();
@@ -463,7 +464,7 @@ function fillTeacher(d, p){
   if(d === $("log").lastElementChild) showCaption(p);
 }
 function parse(raw){
-  const clean = raw.replace(/\*\*/g, "");
+  const clean = raw.replace(/\\n/g, "\n").replace(/\*\*/g, "");
   const get = k => { const m = clean.match(new RegExp(k + "\\s*:\\s*(.+)", "i")); return m ? m[1].trim() : ""; };
   let es = get("BAERLI"), pt = get("TRADU[CÇ][AÃ]O"), tip = get("DICA");
   es = es.replace(/\s*TRADU[CÇ][AÃ]O\s*:.*$/i, "").trim();
@@ -473,7 +474,7 @@ function parse(raw){
   return { es, pt, tip };
 }
 
-/* Pede a resposta em partes: o professor começa a falar assim que a primeira linha fica pronta. */
+/* Resposta curta do servidor, com voz no idioma de cada trecho. */
 async function ask(messages){
   const response = await fetch("/api/chat", {
     method: "POST", headers: {"Content-Type":"application/json"},
@@ -532,18 +533,11 @@ $("start").onclick = async () => {
 };
 
 async function greet(){
-  history = []; $("log").innerHTML = ""; $("you").textContent = ""; $("line").textContent = ""; setExtra("");
-  const opener = { A1: "Oi! Quero aprender alemão.", A2: "Hallo, wie geht's?", B1: "Hallo, wie geht's?" }[$("level").value];
-  history.push({ role:"user", content: "(The student just opened the app. Greet them in character, introduce yourself in one sentence and start the scene.) " + opener });
-  setStatus("think", "Bärli pensando");
-  busy = true; thinking = true; $("mic").disabled = true;
-  try{
-    const { raw, speaking } = await ask([{ role:"system", content: systemPrompt() }, ...history], 0.5);
-    history.push({ role:"assistant", content: raw });
-    speaking.catch(e => console.warn("[Wordly] voz", e));
-  }catch(e){ toast("O Bärli engasgou: " + e.message); }
-  busy = false; thinking = false; $("mic").disabled = false;
-  setStatus("", "Sua vez");
+  stopSpeaking();
+  history = []; $("log").innerHTML = ""; $("you").textContent = ""; setExtra("");
+  const p = { es: $("level").value === "A1" ? "Oi! Sou Bärli, seu professor de alemão. O que você quer conversar ou praticar hoje?" : "Hallo, ich bin Bärli. Worüber möchtest du heute sprechen?", pt:"", tip:"" };
+  addTeacher(p);
+  speak(p.es).catch(e => console.warn("[Wordly] voz", e));
 }
 
 $("settingsBtn").onclick = () => $("setup").classList.toggle("hidden");
@@ -552,8 +546,8 @@ $("historyBtn").onclick = () => { $("historySheet").classList.remove("hidden"); 
 $("closeHistory").onclick = () => $("historySheet").classList.add("hidden");
 $("historySheet").onclick = e => { if(e.target.id === "historySheet") $("historySheet").classList.add("hidden"); };
 
-/* Mudar humor, nível ou cena no meio recomeça a conversa */
-["level","humor","scene"].forEach(id => $(id).onchange = () => { if(engine && !busy){ stopSpeaking(); greet(); } });
+/* Ajustes passam a valer na próxima resposta, preservando o contexto. */
+["level","humor","scene"].forEach(id => $(id).onchange = () => { if(engine && !busy){ stopSpeaking(); setStatus("", "Sua vez"); } });
 </script>
 </body>
 </html>
