@@ -14,6 +14,7 @@ for (const file of ['torito', 'coquette', 'barli', 'lupino', 'leeuwie']) {
  vm.runInContext(`
  let history = [], busy = false, thinking = false, engine = {};
  const mic = {}, $ = () => mic;
+ const resetRecognition = () => {};
  const stopSpeaking = () => {}, addMe = () => {}, setStatus = () => {}, toast = () => {};
  const systemPrompt = () => 'Teacher';
  let fail = false, calls = 0;

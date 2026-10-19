@@ -231,6 +231,7 @@ Teaching rules:
 - Always end your Spanish line with ONE question to keep the conversation going.
 - Never say you are an AI or mention any company or technology. You are Torito.
 
+Keep the entire answer under 40 words. Your spoken line must be at most TWO short sentences. Give only ONE simple question. Accuracy comes before jokes.
 ANSWER FORMAT. Exactly three lines, nothing else:
 TORITO: <your line in Spanish>
 TRADUCAO: <translation of your line into Brazilian Portuguese, or - if your line is already in Portuguese>
@@ -271,19 +272,18 @@ function nativeVoice(){
        || vs.find(v => /es-ES/i.test(v.lang) && /(jorge|pablo|alvaro|álvaro|enrique|male|hombre)/i.test(v.name))
        || vs.find(v => /es-ES/i.test(v.lang)) || vs[0] || null;
 }
-function pickVoice(){
-  const multi = speechSynthesis.getVoices().filter(v => /multilingual/i.test(v.name));
-  const gender = /(andrew|brian|remy|florian|giuseppe|tristan|william|ryan|christopher|guy)/i;
-  const PREF = ["tristan", "alvaro", "álvaro", "jorge", "andrew", "brian"];
-  voice = PREF.map(n => multi.find(v => v.name.toLowerCase().includes(n) && gender.test(v.name))).find(Boolean)
-       || multi.find(v => /^es/i.test(v.lang) && gender.test(v.name))
-       || multi.find(v => gender.test(v.name))
-       || nativeVoice();
+function bestVoice(lang){
+  const base = lang.split("-")[0].toLowerCase();
+  const vs = speechSynthesis.getVoices().filter(v => v.lang.toLowerCase().split("-")[0] === base);
+  const score = v => (/natural|neural|online|premium|enhanced/i.test(v.name) ? 100 : 0)
+    + (/google/i.test(v.name) ? 50 : 0) + (v.lang.toLowerCase() === lang.toLowerCase() ? 20 : 0);
+  return vs.sort((a,b) => score(b) - score(a))[0] || null;
 }
+function pickVoice(){ voice = bestVoice("es-ES") || nativeVoice(); }
 speechSynthesis.onvoiceschanged = pickVoice; pickVoice();
 
 const SPEEDS = [0.85, 1.0, 1.15, 1.3, 1.5];
-let speechRate = 1.15;
+let speechRate = 1.0;
 try{ const saved = parseFloat(localStorage.getItem("speechRate")); if(SPEEDS.includes(saved)) speechRate = saved; }catch(_){}
 function showSpeed(){ $("speed").textContent = "Velocidade " + speechRate + "x"; }
 showSpeed();
@@ -326,8 +326,10 @@ function speak(text){
       if(i >= chunks.length) return finish();
       const c = chunks[i++];
       const u = new SpeechSynthesisUtterance(c.text);
-      if(voice){ u.voice = voice; u.lang = voice.lang; } else u.lang = c.pt ? "pt-BR" : "es-ES";
-      u.rate = speechRate; u.pitch = 0.95;
+      const selectedVoice = c.pt ? bestVoice("pt-BR") : (bestVoice("es-ES") || voice);
+      u.lang = c.pt ? "pt-BR" : "es-ES";
+      if(selectedVoice) u.voice = selectedVoice;
+      u.rate = speechRate; u.pitch = 1.0;
       let done = false;
       const go = () => { if(done) return; done = true; clearTimeout(guard); next(); };
       const guard = setTimeout(go, 2500 + u.text.length * 120);
@@ -354,25 +356,46 @@ async function ensureMic(){
     micAllowed = true; return true;
   }catch(e){ toast(MIC_ERRORS["not-allowed"]); return false; }
 }
-let restarts = 0, stopGuard = null, finished = true;
+let restarts = 0, stopGuard = null, restartTimer = null, finished = true;
+let micSession = 0, micStarting = false;
 const wait = ms => new Promise(r => setTimeout(r, ms));
+function resetRecognition(){
+  micSession++;
+  clearTimeout(stopGuard); clearTimeout(restartTimer);
+  const old = rec; rec = null;
+  if(old){ old.onresult = old.onerror = old.onend = null; try{ old.abort(); }catch(_){} }
+  listening = false; finished = true;
+  heard = ""; currentFinal = "";
+  $("mic").classList.remove("on"); $("micLabel").textContent = "Falar";
+}
 async function startListening(){
+  if(micStarting || listening) return;
   if(!SR){ toast("Seu navegador não reconhece voz. Use o Google Chrome, ou escreva na caixa ao lado."); return; }
   if(busy || !engine){ toast("Espere um pouquinho, ainda estou pensando na resposta."); return; }
-  stopSpeaking(); hideToast();
-  if(!(await ensureMic())) return;
-  await wait(150); // deixa a voz do professor parar antes de abrir o microfone
-  restarts = 0; finished = false;
-  heard = ""; currentFinal = ""; userStop = false; micFatal = false; $("typeIn").value = "";
-  if(!beginRecognition()) return;
-  listening = true;
-  $("mic").classList.add("on"); $("micLabel").textContent = "Terminei";
-  setStatus("listen", "Torito ouvindo. Aperte Terminei quando acabar");
+  micStarting = true;
+  try{
+    resetRecognition();
+    const session = micSession;
+    stopSpeaking(); hideToast();
+    if(!(await ensureMic())) return;
+    await wait(150);
+    if(session !== micSession || busy) return;
+    restarts = 0; finished = false; userStop = false; micFatal = false;
+    $("typeIn").value = "";
+    listening = true;
+    if(!beginRecognition(session)) return;
+    $("mic").classList.add("on"); $("micLabel").textContent = "Terminei";
+    setStatus("listen", "Torito ouvindo. Aperte Terminei quando acabar");
+  }finally{ micStarting = false; }
 }
-function beginRecognition(){
-  rec = new SR(); rec.lang = "es-ES"; rec.continuous = true; rec.interimResults = true; rec.maxAlternatives = 1;
+function beginRecognition(session = micSession){
+  const active = new SR(); rec = active;
+  active.lang = $("level").value === "A1" ? "pt-BR" : "es-ES";
+  active.continuous = true; active.interimResults = true; active.maxAlternatives = 1;
   currentFinal = "";
-  rec.onresult = e => {
+  const valid = () => session === micSession && rec === active && !finished;
+  active.onresult = e => {
+    if(!valid()) return;
     let fin = "", interim = "";
     for(let i = 0; i < e.results.length; i++){
       const r = e.results[i];
@@ -381,32 +404,35 @@ function beginRecognition(){
     currentFinal = fin.trim();
     $("typeIn").value = [heard, currentFinal, interim].filter(Boolean).join(" ").trim();
   };
-  rec.onerror = e => {
-    if(e.error === "no-speech" || e.error === "aborted") return;
+  active.onerror = e => {
+    if(!valid() || e.error === "no-speech" || e.error === "aborted") return;
     micFatal = true;
-    toast(MIC_ERRORS[e.error] || ("O microfone deu erro (" + e.error + "). Enquanto isso, você pode escrever na caixa ao lado."));
+    toast(MIC_ERRORS[e.error] || ("O microfone deu erro (" + e.error + "). Você pode escrever na caixa ao lado."));
   };
-  rec.onend = () => {
+  active.onend = () => {
+    if(!valid()) return;
     heard = [heard, currentFinal].filter(Boolean).join(" ").trim(); currentFinal = "";
-    // O Chrome às vezes desliga sozinho depois de um silêncio: religa até você apertar Terminei.
     if(listening && !userStop && !micFatal && restarts < 30){
       restarts++;
-      setTimeout(() => { if(listening && !userStop && !micFatal){ if(!beginRecognition()) finishListening(); } else finishListening(); }, 250);
+      restartTimer = setTimeout(() => {
+        if(!valid()) return;
+        if(listening && !userStop && !micFatal){ if(!beginRecognition(session)) finishListening(); }
+        else finishListening();
+      }, 250);
       return;
     }
     finishListening();
   };
-  try{ rec.start(); return true; }
-  catch(e){ toast("Não consegui ligar o microfone: " + e.message); finishListening(); return false; }
+  try{ active.start(); return true; }
+  catch(e){ micFatal = true; toast("Não consegui ligar o microfone: " + e.message); finishListening(); return false; }
 }
 function finishListening(){
-  clearTimeout(stopGuard);
   if(finished) return;
-  finished = true;
-  const wasListening = listening;
-  listening = false; $("mic").classList.remove("on"); $("micLabel").textContent = "Falar";
   const t = ($("typeIn").value || "").trim();
-  if(wasListening && t && !micFatal){ $("typeIn").value = ""; send(t); }
+  const shouldSend = listening && t && !micFatal;
+  resetRecognition();
+  $("typeIn").value = "";
+  if(shouldSend) send(t);
   else if(!thinking) setStatus("", "Sua vez");
 }
 const MIC_ERRORS = {
@@ -428,7 +454,12 @@ $("mic").onclick = () => {
   clearTimeout(stopGuard);
   stopGuard = setTimeout(() => { try{ rec.abort(); }catch(_){} finishListening(); }, 1500);
 };
-$("typeForm").onsubmit = e => { e.preventDefault(); if(busy || !engine) return; const t = $("typeIn").value.trim(); if(t){ $("typeIn").value=""; send(t); } };
+$("typeForm").onsubmit = e => {
+  e.preventDefault();
+  if(busy || !engine) return;
+  const t = $("typeIn").value.trim();
+  if(t){ resetRecognition(); $("typeIn").value = ""; send(t); }
+};
 
 /* ---------- Conversa ---------- */
 function esc(s){ return s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
@@ -493,7 +524,7 @@ const FIRST_LINE = new RegExp("TORITO\\s*:\\s*([\\s\\S]+?)(?:\\n|TRADU[CÇ][AÃ]
 async function ask(messages, temperature){
   let raw = "", bubble = null, speaking = Promise.resolve();
   try{
-  const stream = await engine.chat.completions.create({ messages, temperature, max_tokens: 170, stream: true });
+  const stream = await engine.chat.completions.create({ messages, temperature, max_tokens: 96, stream: true });
   for await (const chunk of stream){
     raw += (chunk.choices[0] && chunk.choices[0].delta && chunk.choices[0].delta.content) || "";
     if(!bubble){
@@ -520,16 +551,17 @@ async function ask(messages, temperature){
 
 async function send(text){
   if(busy || !engine) return;
+  resetRecognition();
   busy = true; thinking = true; $("mic").disabled = true;
   stopSpeaking();
   addMe(text);
   history.push({ role:"user", content:text });
   setStatus("think", "Torito pensando");
   try{
-    const msgs = [{ role:"system", content: systemPrompt() }, ...history.slice(-7)];
-    const { raw, speaking } = await ask(msgs, 0.8);
+    const msgs = [{ role:"system", content: systemPrompt() }, ...history.slice(-5)];
+    const { raw, speaking } = await ask(msgs, 0.5);
     history.push({ role:"assistant", content: raw });
-    await speaking;
+    speaking.catch(e => console.warn("[Wordly] voz", e));
   }catch(e){
     history.pop();
     toast("O Torito engasgou: " + e.message);
@@ -642,9 +674,9 @@ async function greet(){
   setStatus("think", "Torito pensando");
   busy = true; thinking = true; $("mic").disabled = true;
   try{
-    const { raw, speaking } = await ask([{ role:"system", content: systemPrompt() }, ...history], 0.9);
+    const { raw, speaking } = await ask([{ role:"system", content: systemPrompt() }, ...history], 0.5);
     history.push({ role:"assistant", content: raw });
-    await speaking;
+    speaking.catch(e => console.warn("[Wordly] voz", e));
   }catch(e){ toast("O Torito engasgou: " + e.message); }
   busy = false; thinking = false; $("mic").disabled = false;
   setStatus("", "Sua vez");
