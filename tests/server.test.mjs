@@ -39,7 +39,7 @@ test('bounds API use and protects every teacher with consistent language instruc
  for(let i=0;i<10;i++) assert.equal((await request(base,body)).status,200);
  assert.equal((await request(base,body)).status,429);assert.equal(calls,10);
  for(const key of Object.keys(teachers)){
-  const prompt=promptFor(key,'A1','sweet','free');if(key==='torito') assert.match(prompt,/spoken answer must be entirely in Spanish/);else assert.match(prompt,/Explain in Brazilian Portuguese/);assert.doesNotMatch(prompt,/If the student writes in Portuguese, answer in/);
+  const prompt=promptFor(key,'A1','sweet','free');assert.match(prompt,/spoken answer must be entirely in/);assert.doesNotMatch(prompt,/If the student writes in Portuguese, answer in/);
   const html=await readFile(new URL(`../${key}.html`,import.meta.url),'utf8');
   const script=html.match(/<script type="module">([\s\S]*?)<\/script>/)[1];
   const {Script}=await import('node:vm');new Script(script);

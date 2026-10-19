@@ -34,22 +34,23 @@ for(const file of ['torito','coquette','barli','lupino','leeuwie']) {
  const before=sessions.length; timers.forEach(fn=>fn());assert.equal(sessions.length,before);
  assert.deepEqual(sent,['primeira frase','segunda frase','terceira frase']);
  if(file!=='torito'){
- const voices=[{name:'Microsoft Desktop',lang:'pt-BR'},{name:'Google português',lang:'pt-BR'},{name:'Microsoft Francisca Online (Natural)',lang:'pt-BR'},{name:'Unrelated Natural',lang:'en-US'}];
+ const lang={coquette:'fr-FR',barli:'de-DE',lupino:'it-IT',leeuwie:'nl-NL'}[file];
+ const name={coquette:'Microsoft Denise Online (Natural)',barli:'Microsoft Conrad Online (Natural)',lupino:'Microsoft Diego Online (Natural)',leeuwie:'Microsoft Maarten Online (Natural)'}[file];
+ const voices=[{name:'Unknown Natural',lang},{name,lang},{name,lang:'pt-BR'}];
  ctx.speechSynthesis={getVoices:()=>voices};
- const choose=script.slice(script.indexOf('function bestVoice'),script.indexOf('function pickVoice'));
- vm.runInContext(choose,ctx);
- assert.equal(vm.runInContext('bestVoice("pt-BR").name',ctx),'Microsoft Francisca Online (Natural)');
-
+ vm.runInContext(script.slice(script.indexOf('function teacherVoice'),script.indexOf('const SPEEDS')),ctx);
+ assert.equal(vm.runInContext('teacherVoice().name',ctx),name);
+ voices.splice(1,1);assert.equal(vm.runInContext('teacherVoice()',ctx),null);
  // A cancelled utterance cannot reset the listening status or resume old chunks.
  const utterances=[],statuses=[];
  const audio=vm.createContext({assert,$,speechRate:1,voice:null,
   speechSynthesis:{cancel(){},resume(){},speak(u){utterances.push(u)}},
-  SpeechSynthesisUtterance:function(text){this.text=text},bestVoice:()=>null,
+  SpeechSynthesisUtterance:function(text){this.text=text},teacherVoice:()=>({name,lang}),toast(){},
   mouth(){},setStatus(...args){statuses.push(args)},setTimeout:()=>1,clearTimeout(){}});
  vm.runInContext(script.slice(script.indexOf('function speechChunks'),script.indexOf('function plain')),audio);
  vm.runInContext(script.slice(script.indexOf('let speakId'),script.indexOf('/* ---------- Ouvir')),audio);
- assert.equal(vm.runInContext('speechChunks("Vamos conversar.")[0].pt',audio),true);
- vm.runInContext('speak("Uma frase. Outra frase."); stopSpeaking(); setStatus("listen","Ouvindo");',audio);
+ assert.equal(vm.runInContext('speechChunks("Português [[Bonjour!]]")[0].text',audio),"Bonjour!");
+ vm.runInContext('speak("[[Uma frase.]] [[Outra frase.]]"); stopSpeaking(); setStatus("listen","Ouvindo");',audio);
  utterances[0].onend();
  assert.equal(utterances.length,1);assert.deepEqual(statuses.at(-1),['listen','Ouvindo']);
  }

@@ -9,11 +9,7 @@ const scenes={free:'Free conversation. Follow the topic chosen by the student.',
 export function promptFor(teacher,level,humor,scene){
  const t=teachers[teacher];
  if(!Object.hasOwn(teachers,teacher)) throw Error('Professor inválido.');
- const levelRule=teacher==='torito'
- ? `Your spoken answer must be entirely in Spanish from Spain at CEFR ${level}. Put the Spanish answer inside [[double brackets]]. Brazilian Portuguese belongs only in TRADUCAO, never in the spoken answer. Even if the student asks in Portuguese, answer in Spanish and provide the Portuguese translation.`
- : level==='A1'
- ? `Explain in Brazilian Portuguese. Put only ${t.language} phrases inside [[double brackets]]. Teach one short phrase at a time, but first answer what the student actually asked. Do not force a lesson when they asked something else. TRADUCAO must be - when your main line is in Portuguese.`
- : `Speak ${t.language} at CEFR ${level}. Translate your main line accurately into Brazilian Portuguese in TRADUCAO.`;
+ const levelRule=`Your spoken answer must be entirely in ${t.language} at CEFR ${level}. Put the answer inside [[double brackets]]. Brazilian Portuguese belongs only in TRADUCAO, never in the spoken answer. Even if the student asks in Portuguese, answer in ${t.language} and provide the Portuguese translation.`;
  const mood=humor==='sweet'?'Warm, patient and friendly. No swearing.':humor==='spicy'?'Warm and lightly playful. Humor must never distract from the question.':'Expressive and playful, but keep answers clear and relevant.';
  return `You are ${t.name}, a conversational ${t.language} tutor for adult Brazilians.
 Priority 1: understand and answer the student's latest question directly. Use the preceding conversation to resolve references and retain their name and topic. Do not restart, greet again or change topics without a reason.
