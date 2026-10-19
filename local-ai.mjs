@@ -35,7 +35,7 @@ export function normalizeLocalReply(teacher,raw){
  let data;try{data=JSON.parse(raw);}catch{throw Error('A IA local respondeu em um formato inválido. Tente novamente.');}
  if(!data||!['pt','target'].includes(data.language)||typeof data.answer!=='string'||!data.answer.trim()||typeof data.translation!=='string'||typeof data.tip!=='string') throw Error('A resposta local está incompleta. Tente novamente.');
  const line=t=>t.replace(/[\r\n]+/g,' ').trim();
- let answer=line(data.answer);
+ let answer=line(data.answer).replace(new RegExp('^'+teachers[teacher].label+'\\s*:\\s*','i'),'');
  if(data.language==='target') answer='[['+answer.replace(/\[\[|\]\]/g,'')+']]';
  return teachers[teacher].label+': '+answer+'\nTRADUCAO: '+(data.language==='target'?line(data.translation)||'-':'-')+'\nDICA: '+(line(data.tip)||'-');
 }

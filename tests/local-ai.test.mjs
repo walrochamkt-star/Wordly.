@@ -51,6 +51,7 @@ test('speech uses native voice for unmarked target-language answers and preserve
  assert.match(normalizeLocalReply('torito',JSON.stringify({answer:'¡Buenos días!',language:'target',translation:'Bom dia!',tip:''})),/TORITO: \[\[¡Buenos días!\]\]/);
  assert.match(normalizeLocalReply('coquette',JSON.stringify({answer:'Diga [[bonjour]].',language:'pt',translation:'wrong duplicate',tip:''})),/COQUETTE: Diga \[\[bonjour\]\].\nTRADUCAO: -/);
  assert.throws(()=>normalizeLocalReply('torito','not json'),/formato inválido/);
+ assert.match(normalizeLocalReply('torito',JSON.stringify({answer:'TORITO: Un café sin azúcar.',language:'target',translation:'Um café sem açúcar.',tip:''})),/TORITO: \[\[Un café sin azúcar\.\]\]/);
 });
 test('preserves explicit student name beyond bounded recent context, accepts correction and ignores assistant inventions',()=>{
  const messages=[{role:'user',content:'Meu nome é Wal e quero pedir café.'},{role:'assistant',content:'Seu nome é Maria.'},...Array.from({length:20},(_,i)=>({role:i%2?'assistant':'user',content:'Mais uma troca'})),{role:'user',content:'Qual meu nome?'}];
