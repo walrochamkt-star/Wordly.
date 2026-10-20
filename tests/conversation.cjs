@@ -7,7 +7,8 @@ for (const file of ['torito', 'coquette', 'barli', 'lupino', 'leeuwie']) {
  const html = readFileSync(`${__dirname}/../${file}.html`, 'utf8');
  const code = html.match(/<script type="module">([\s\S]*?)<\/script>/)[1];
  new vm.Script(code); // Parse the complete page script.
- assert.match(html, /value="online"/);
+ assert.match(html, /value="local" selected/);
+ assert.doesNotMatch(html, /<option value="online"/);
  assert.match(code, /fetch\("\/api\/chat"/);
  const send = code.slice(code.indexOf('async function send(text)'), code.indexOf('\nfunction alertBox'));
  const state = vm.createContext({assert});
