@@ -460,12 +460,13 @@ function parse(raw){
 
 /* Resposta curta do servidor, com voz no idioma de cada trecho. */
 async function ask(messages){
-  let data;
+  let data,preview=null,earlySpeech=null;
+  const onAnswer=answer=>{preview=addTeacher({es:'[['+answer.replace(/\[\[|\]\]/g,'')+']]',pt:'',tip:''});earlySpeech=speak('[['+answer+']]');earlySpeech.catch(()=>{});};
   if(engine.complete){
     const lessonApi=await import('/lessons-data.mjs');
     const prepared=lessonApi.fastReply('leeuwie',messages.at(-1).content,{topic:quickTopic,previous:messages.filter(m=>m.role==='assistant').at(-1)?.content||''});
     if(prepared){quickTopic=prepared.topic;data={raw:`LEEUWIE: [[${prepared.answer}]]\nTRADUCAO: ${prepared.pt}\nDICA: -`};}
-    else data = {raw:await engine.complete(messages, {level:$("level").value,humor:$("humor").value,scene:$("scene").value})};
+    else data = {raw:await engine.complete(messages, {level:$("level").value,humor:$("humor").value,scene:$("scene").value},{onAnswer})};
   }else{
   const response = await fetch("/api/chat", {
     method: "POST", headers: {"Content-Type":"application/json"},
@@ -478,8 +479,8 @@ async function ask(messages){
   }
   const p = parse(data.raw);
   if(!p.es) throw new Error("O professor não retornou uma resposta.");
-  addTeacher(p);
-  return {raw:data.raw,speaking:speak(p.es)};
+  if(preview)fillTeacher(preview,p);else addTeacher(p);
+  return {raw:data.raw,speaking:earlySpeech||speak(p.es)};
 }
 
 async function send(text){
@@ -496,6 +497,7 @@ async function send(text){
     history.push({ role:"assistant", content: raw });
     speaking.catch(e => console.warn("[Wordly] voz", e));
   }catch(e){
+    stopSpeaking();
     history.pop();
     toast("O Leeuwie engasgou: " + e.message);
     setStatus("", "Sua vez");
@@ -508,7 +510,7 @@ function alertBox(msg){ $("err").textContent = msg; $("err").classList.remove("h
 /* Conecta ao servidor; a chave da API nunca vai para o navegador. */
 let quickTopic=new URLSearchParams(location.search).get('topic')||'';
 let quickLocal=null;
-async function quickComplete(messages,settings){
+async function quickComplete(messages,settings,options){
  const lessons=await import('/lessons-data.mjs');
  const previous=messages.filter(m=>m.role==='assistant').at(-1)?.content||'';
  const match=lessons.fastReply('leeuwie',messages.at(-1).content,{topic:quickTopic,previous});
@@ -519,7 +521,7 @@ async function quickComplete(messages,settings){
    loadController=new AbortController();cancelQuick.classList.remove('hidden');
    try{quickLocal=await createLocalTutor({signal:loadController.signal,teacher:'leeuwie',onProgress:p=>setStatus('think','Carregando conversa aberta: '+Math.round((p.progress||0)*100)+'%')});}finally{loadController=null;cancelQuick.classList.add('hidden');}
  }
- return quickLocal.complete(messages,settings);
+ return quickLocal.complete(messages,settings,options);
 }
 const cancelQuick=document.createElement('button');cancelQuick.type='button';cancelQuick.className='chip hidden';cancelQuick.textContent='Cancelar preparação da IA';cancelQuick.onclick=()=>loadController?.abort();$('controls').append(cancelQuick);
 const quickButton=document.createElement('button');quickButton.type='button';quickButton.className='chip';quickButton.textContent='Free Speak com respostas rápidas';

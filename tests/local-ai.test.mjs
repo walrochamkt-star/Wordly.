@@ -73,3 +73,19 @@ test('preserves original assistant payload for model context instead of reformat
  const previous=deps.calls[2].messages.find(m=>m.role==='assistant');
  assert.match(previous.content,/"answer":"Gracias\."/);assert.match(previous.content,/<think>/);tutor.close();
 });
+
+test('streaming releases the complete spoken answer before translation and does not speak partial or Portuguese fields',async()=>{
+ const {readySpokenReply}=await import('../local-ai.mjs');
+ assert.equal(readySpokenReply('{"answer":"Hol'),null);
+ assert.equal(readySpokenReply('{"answer":"Oi","language":"pt"'),null);
+ assert.equal(readySpokenReply('<think>secret'),null);
+ assert.deepEqual(readySpokenReply('{"answer":"Dijo \\"hola\\".","language":"target","translation":"'),{answer:'Dijo "hola".',language:'target'});
+ let releaseTranslation;const gate=new Promise(r=>releaseTranslation=r);let ready;const visible=new Promise(r=>ready=r);let completed=false;
+ const deps=mock({create:()=>({chat:{completions:{create:async input=>{
+  assert.equal(input.stream,true);assert.equal(input.extra_body.enable_thinking,false);assert.ok(input.max_tokens<=240);
+  return (async function*(){yield {choices:[{delta:{content:'{"answer":"Hola. ¿Cómo estás?","language":"target",'}}]};await gate;yield {choices:[{delta:{content:'"translation":"Olá. Como você está?","tip":""}'},finish_reason:'stop'}]};})();
+ }}}})});
+ const tutor=await createLocalTutor({teacher:'torito',...deps});const spoken=[];
+ const pending=tutor.complete([{role:'user',content:'Hola'}],settings,{onAnswer:text=>{spoken.push(text);ready();}}).then(x=>{completed=true;return x;});
+ await visible;assert.equal(completed,false);assert.deepEqual(spoken,['Hola. ¿Cómo estás?']);releaseTranslation();assert.match(await pending,/TRADUCAO: Olá/);assert.equal(spoken.length,1);assert.ok(tutor.timings().totalMs>=tutor.timings().answerReadyMs);tutor.close();
+});
