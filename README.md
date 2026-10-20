@@ -74,3 +74,15 @@ Progresso por professor fica em `wordly:learning:v1:<teacher>` no localStorage, 
 Cada página oferece Free Speak com respostas rápidas, sem baixar a IA inicialmente. Só cumprimentos, agradecimentos e alguns pedidos de café são cobertos pelo roteador conservador. Perguntas desconhecidas carregam o modelo local; o carregamento pode ser cancelado. O Free Speak normal também usa esses padrões. Prática anterior é incluída de forma limitada no contexto do modelo. Não há chamadas ao Gemini nesse fluxo. Áudio ainda é sintetizado durante o uso: não há um banco de gravações prontas.
 
 Limites: WebGPU para conversa aberta; transcrição depende do serviço de reconhecimento do navegador; vozes dependem do dispositivo ou Piper. Respostas abertas ainda podem ser lentas. Conteúdo multilíngue precisa de revisão editorial contínua por falantes/professores, sobretudo registros e variações regionais.
+
+
+## Conversação oral v2 e celular
+
+As cenas agora usam `conversation-scenes.mjs`: 39 situações por idioma, três turnos por cena. O professor faz perguntas na língua-alvo. A interação principal é microfone, transcrição visível e confirmação da fala. Escrita fica num painel de acessibilidade e não conclui prática oral. `wordly:oral:v2:<teacher>` separa progresso oral do antigo progresso de microaulas escritas. O sistema avalia intenções limitadas a padrões e formas cadastradas; não certifica fluência, domínio geral da conversação, gramática ou pronúncia. A transcrição continua dependente do reconhecimento de fala do navegador.
+
+O celular `/phone.html` oferece reading (escolher uma resposta após ler) e texting (digitar uma mensagem), cinco professores, registros formal/informal e três situações: café, encontro/reunião e atraso. Recusas encerram a combinação sem confirmar um encontro. Conversas ficam separadas por professor/registro/situação/modo em `wordly:phone:v1:...`. Não é um mensageiro real nem conversa generativa ilimitada: entradas fora do roteiro pedem esclarecimento e indicam Free Speak.
+
+Visual: cenas cartunescas em atlas 7x6 por espécie, baseadas nos mascotes fornecidos, textura de papel e pintura suave. Atlas são módulos públicos de imagens incorporadas; os 39 primeiros quadros correspondem às 39 situações. CSS compartilhado em `practice.css`; conta e API externa não são exigidas por esses roteiros. Áudio ainda depende das vozes disponíveis ou Piper; não há avaliação acústica.
+
+
+O celular também oferece conversa livre por mensagens, com carregamento explícito da IA local apenas no primeiro envio. O registro formal/informal é passado ao contexto do modelo. Controles cancelam carregamento/geração e ignoram respostas de sessões antigas. Reading usa os diálogos preparados; conversa livre usa texting. Os próprios mascotes fornecidos pelo usuário aparecem nos contatos.

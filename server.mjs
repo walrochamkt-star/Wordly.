@@ -4,7 +4,7 @@ import {fileURLToPath} from 'node:url';
 
 import {teachers,promptFor} from './tutor-prompt.mjs';
 export {teachers,promptFor} from './tutor-prompt.mjs';
-const publicPaths=new Set(['lessons.html','lessons-data.mjs','lessons-ui.mjs','torito-voice.mjs','torito-voice-worker.mjs','local-ai.mjs','local-worker.mjs','tutor-prompt.mjs','index.html',...Object.keys(teachers).map(t=>t+'.html')]);
+const publicPaths=new Set(['teacher-portraits.mjs','practice.css','conversation-scenes.mjs','phone.html','phone-data.mjs','phone-ui.mjs',...['torito','coquette','barli','lupino','leeuwie'].map(t=>t+'-scene-art.mjs'),'lessons.html','lessons-data.mjs','lessons-ui.mjs','torito-voice.mjs','torito-voice-worker.mjs','local-ai.mjs','local-worker.mjs','tutor-prompt.mjs','index.html',...Object.keys(teachers).map(t=>t+'.html')]);
 export function makeServer({env=process.env,fetchImpl=fetch,root=new URL('./',import.meta.url),clock=Date.now}={}){
  let active=0; const rate=new Map();
  const ready=()=>Boolean(env.GEMINI_API_KEY&&env.GEMINI_FREE_TIER_CONFIRMED==='true');
@@ -64,7 +64,7 @@ export function makeServer({env=process.env,fetchImpl=fetch,root=new URL('./',im
   const path=url.pathname==='/'?'index.html':url.pathname.slice(1);
   if(!publicPaths.has(path)) return json(res,404,{error:'Página não encontrada.'});
   const html=await readFile(new URL(path,root));
-  res.writeHead(200,{'Content-Type':path.endsWith('.mjs')?'text/javascript; charset=utf-8':'text/html; charset=utf-8','Cache-Control':'no-cache'});res.end(req.method==='HEAD'?undefined:html);
+  res.writeHead(200,{'Content-Type':path.endsWith('.mjs')?'text/javascript; charset=utf-8':path.endsWith('.css')?'text/css; charset=utf-8':'text/html; charset=utf-8','Cache-Control':'no-cache'});res.end(req.method==='HEAD'?undefined:html);
  }catch{if(!res.headersSent)json(res,500,{error:'Não foi possível concluir a solicitação.'});else res.end();}
  });
 }

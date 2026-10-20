@@ -29,7 +29,7 @@ export function localMessages(teacher,settings,messages){
  const levelRule=`Previous guided practice (not proof of pronunciation): ${learned || 'none'}. Speak entirely in ${t.language} at CEFR ${level}, even when the student asks in Portuguese. The spoken answer must not contain Portuguese. Provide Brazilian Portuguese only in translation, set language to target.`;
  const scene={bar:'ordering drinks',restaurant:'ordering food',meet:'meeting someone',travel:'airport and hotel'}[settings.scene]||'free conversation';
  const mood=settings.humor==='sweet'?'Be patient; no swearing.':'Be friendly and lightly playful; never distract from the question.';
- const base=`You are ${t.name}, a ${t.language} tutor for Brazilian adults. Answer the latest question directly and accurately. Use history to retain names and topic. Never restart, greet again, invent grammar or change topic without reason. ${levelRule} ${mood} Optional scene: ${scene}; the latest student question overrides it. Ask a follow-up only when useful.`;
+ const base=`You are ${t.name}, a ${t.language} tutor for Brazilian adults. Answer the latest question directly and accurately. Use history to retain names and topic. ${settings.register==='formal'?'Use a formal respectful register with formal pronouns and no slang.':settings.register==='informal'?'Use a relaxed informal everyday register, without offensive insults.':''} Never restart, greet again, invent grammar or change topic without reason. ${levelRule} ${mood} Optional scene: ${scene}; the latest student question overrides it. Ask a follow-up only when useful.`;
  const format=`You receive text only, including possibly imperfect speech-recognition transcripts, never the original audio. Do not claim to assess pronunciation, accent, phonemes or speaking accuracy from this text. Correct only observable text errors. If the wording is unclear, ask for clarification instead of inventing what was said. Do not automatically praise correctness. Reply ONLY with a JSON object: answer, language, translation, tip. answer is the spoken answer in 1-2 short sentences, about 30 words. language MUST describe the actual main language of answer: pt for Portuguese, target for ${teachers[teacher].language}. If you give just a translated foreign phrase, use target. Within Portuguese explanations, wrap foreign phrases in [[double brackets]]. translation is Brazilian Portuguese only when answer is in the target language, otherwise empty. tip is empty unless a correction is needed. Never put JSON or field names inside answer.`;
  return [{role:'system',content:base+'\n'+format+(name?'\nThe student explicitly provided this name: '+JSON.stringify(name)+'. Remember it; do not invent other personal facts.':'')},...recent];
 }
@@ -67,7 +67,7 @@ export async function createLocalTutor({teacher,signal,onProgress=()=>{},gpu=glo
   cancelled();
  }catch(e){worker.terminate();throw Error(e.message||'Não consegui carregar a IA neste aparelho. Tente outro aparelho ou o modo online.');}
  finally{clearTimeout(timer);signal?.removeEventListener('abort',abortHandler);worker.removeEventListener?.('error',workerError);}
- let active=false,available=true;
+ let active=false,available=true,activeCancel=null;
  const modelReplies=new Map();
  return {
   async complete(messages,settings){
@@ -77,7 +77,7 @@ export async function createLocalTutor({teacher,signal,onProgress=()=>{},gpu=glo
    try{
     let deadline,failed;
     const failure=new Promise((_,reject)=>{
-     const stop=message=>{available=false;worker.terminate();reject(Error(message));};
+     const stop=message=>{available=false;worker.terminate();reject(Error(message));}; activeCancel=stop;
      deadline=setTimeout(()=>stop('Este aparelho demorou demais para responder. Recarregue a página ou experimente o modo online.'),120000);
      failed=()=>stop('A IA local parou neste aparelho. Recarregue a página para tentar novamente.');
      worker.addEventListener?.('error',failed,{once:true});
@@ -85,7 +85,7 @@ export async function createLocalTutor({teacher,signal,onProgress=()=>{},gpu=glo
     const context=localMessages(teacher,settings,messages).map(m=>m.role==='assistant'&&modelReplies.has(m.content)?{...m,content:modelReplies.get(m.content)}:m);
     let result;
     try{result=await Promise.race([client.chat.completions.create({messages:context,temperature:0.4,max_tokens:280,response_format:{type:'json_object',schema:LOCAL_REPLY_SCHEMA},extra_body:{enable_thinking:false}}),failure]);}
-    finally{clearTimeout(deadline);worker.removeEventListener?.('error',failed);}
+    finally{activeCancel=null;clearTimeout(deadline);worker.removeEventListener?.('error',failed);}
     const choice=result.choices?.[0];
     const raw=choice?.message?.content?.replace(/<think>[\s\S]*?<\/think>/g,'').trim();
     if(!raw||choice.finish_reason==='length') throw Error('A resposta local veio incompleta. Faça uma pergunta mais curta e tente novamente.');
@@ -95,6 +95,6 @@ export async function createLocalTutor({teacher,signal,onProgress=()=>{},gpu=glo
     return normalized;
    }finally{active=false;}
   },
-  close(){available=false;worker.terminate();}
+  close(){activeCancel?.('Conversa cancelada.');activeCancel=null;available=false;worker.terminate();}
  };
 }
