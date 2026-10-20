@@ -89,3 +89,12 @@ test('streaming releases the complete spoken answer before translation and does 
  const pending=tutor.complete([{role:'user',content:'Hola'}],settings,{onAnswer:text=>{spoken.push(text);ready();}}).then(x=>{completed=true;return x;});
  await visible;assert.equal(completed,false);assert.deepEqual(spoken,['Hola. ¿Cómo estás?']);releaseTranslation();assert.match(await pending,/TRADUCAO: Olá/);assert.equal(spoken.length,1);assert.ok(tutor.timings().totalMs>=tutor.timings().answerReadyMs);tutor.close();
 });
+
+test('worker string and object rejections are actionable errors instead of undefined',async()=>{
+ const {localErrorMessage}=await import('../local-ai.mjs');
+ for(const e of [undefined,null,{},'undefined',{error:{}},''])assert.doesNotMatch(localErrorMessage(e),/undefined|object Object/);
+ assert.match(localErrorMessage('GPU device lost'),/memória gráfica/);
+ assert.match(localErrorMessage({error:{message:'Failed to fetch'}}),/conexão/);
+ const deps=mock({create:()=>({chat:{completions:{create:async()=>{throw 'WebLLM rejected request';}}}})});
+ const tutor=await createLocalTutor({teacher:'torito',...deps});await assert.rejects(tutor.complete([{role:'user',content:'Restaurante'}],settings),/WebLLM rejected request/);tutor.close();
+});

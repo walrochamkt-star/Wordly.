@@ -2,6 +2,13 @@ import {learningContext} from './lessons-data.mjs';
 import {teachers} from './tutor-prompt.mjs';
 export const WEBLLM_URL='https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.85/+esm';
 export const LOCAL_REPLY_SCHEMA=JSON.stringify({type:'object',properties:{answer:{type:'string'},language:{type:'string',enum:['pt','target']},translation:{type:'string'},tip:{type:'string'}},required:['answer','language','translation','tip'],additionalProperties:false});
+export function localErrorMessage(error){
+ const raw=typeof error==='string'?error:error?.message||error?.error?.message||error?.error||'';
+ const detail=typeof raw==='string'?raw.replace(/\s+/g,' ').trim():'';
+ if(/out of memory|allocation|allocate|buffer.*size|device.*lost|GPU.*lost|memory limit/i.test(detail))return 'A memória gráfica do aparelho ficou indisponível. Feche outras abas do Wordly e tente novamente.';
+ if(/failed to fetch|network|fetch failed|Load failed|download/i.test(detail)&&!/cancel/i.test(detail))return 'Não consegui baixar um arquivo da IA. Confira a conexão e tente novamente.';
+ return detail&&detail!=='undefined'&&detail!=='[object Object]'?detail.slice(0,400):'A IA local não conseguiu concluir a resposta. Tente novamente; se continuar, recarregue a página.';
+}
 export async function checkLocalSupport({gpu=globalThis.navigator?.gpu,deviceMemory=globalThis.navigator?.deviceMemory}={}){
  if(!gpu) return {ok:false,message:'Este navegador não oferece WebGPU. O modo local não funciona aqui; experimente Chrome ou Edge atualizado em um aparelho compatível.'};
  try{
@@ -73,7 +80,7 @@ export async function createLocalTutor({teacher,signal,onProgress=()=>{},gpu=glo
  try{
   client=await Promise.race([lib.CreateWebWorkerMLCEngine(worker,modelId,{initProgressCallback:onProgress},{context_window_size:4096}),stopped]);
   cancelled();
- }catch(e){worker.terminate();throw Error(e.message||'Não consegui carregar a IA neste aparelho. Tente outro aparelho ou o modo online.');}
+ }catch(e){worker.terminate();throw Error(localErrorMessage(e));}
  finally{clearTimeout(timer);signal?.removeEventListener('abort',abortHandler);worker.removeEventListener?.('error',workerError);}
  let active=false,available=true,activeCancel=null,lastTimings=null;
  const modelReplies=new Map();
@@ -86,7 +93,7 @@ export async function createLocalTutor({teacher,signal,onProgress=()=>{},gpu=glo
     let deadline,failed;
     const failure=new Promise((_,reject)=>{
      const stop=message=>{available=false;worker.terminate();reject(Error(message));}; activeCancel=stop;
-     deadline=setTimeout(()=>stop('Este aparelho demorou demais para responder. Recarregue a página ou experimente o modo online.'),120000);
+     deadline=setTimeout(()=>stop('Este aparelho demorou demais para responder. Recarregue a página ou use uma aula guiada.'),120000);
      failed=()=>stop('A IA local parou neste aparelho. Recarregue a página para tentar novamente.');
      worker.addEventListener?.('error',failed,{once:true});
     });
@@ -115,7 +122,7 @@ export async function createLocalTutor({teacher,signal,onProgress=()=>{},gpu=glo
     modelReplies.set(normalized,choice.message.content);
     if(modelReplies.size>32) modelReplies.delete(modelReplies.keys().next().value);
     return normalized;
-   }finally{active=false;}
+   }catch(e){throw Error(localErrorMessage(e));}finally{active=false;}
   },
   timings(){return lastTimings&&{...lastTimings};},
   close(){activeCancel?.('Conversa cancelada.');activeCancel=null;available=false;worker.terminate();}

@@ -499,7 +499,11 @@ async function send(text){
   }catch(e){
     stopSpeaking();
     history.pop();
-    toast("O Lupino engasgou: " + e.message);
+    const rawReason=typeof e==='string'?e:e?.message||e?.error?.message||'';
+    const reason=typeof rawReason==='string'&&rawReason.trim()&&rawReason!=='undefined'?rawReason:'Não consegui concluir a resposta. Tente novamente; se continuar, recarregue a página.';
+    $('typeIn').value=text;
+    toast('Não consegui responder: '+reason);
+
     setStatus("", "Sua vez");
   }
   busy = false; thinking = false; $("mic").disabled = false;
