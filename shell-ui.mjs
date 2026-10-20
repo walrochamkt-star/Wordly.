@@ -1,0 +1,1 @@
+const selector=document.getElementById('shellTeacher');const keys=['torito','coquette','barli','lupino','leeuwie'];if(selector)selector.addEventListener('change',()=>{if(keys.includes(selector.value))location.href='/'+selector.value+'.html';});

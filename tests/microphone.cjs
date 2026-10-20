@@ -14,12 +14,15 @@ for(const file of ['torito','coquette','barli','lupino','leeuwie']) {
  vm.runInContext(code,ctx);
  const result=t => ({results:[Object.assign([{transcript:t}],{isFinal:true})]});
  await vm.runInContext('startListening()',ctx);
- assert.equal(sessions[0].lang,'pt-BR');
+ const target={torito:'es-ES',coquette:'fr-FR',barli:'de-DE',lupino:'it-IT',leeuwie:'nl-NL'}[file];
+ assert.equal(sessions[0].lang,target);
+ $('micLanguage').value='pt-BR';
  const lateResult=sessions[0].onresult, lateEnd=sessions[0].onend;
  sessions[0].onresult(result('primeira frase'));
  $('typeForm').onsubmit({preventDefault(){}});
  assert.deepEqual(sent,['primeira frase']); assert.equal(sessions[0].aborted,true);
  await vm.runInContext('startListening()',ctx);
+ assert.equal(sessions[1].lang,'pt-BR');
  lateResult(result('fala antiga')); lateEnd();
  assert.equal($('typeIn').value,'');
  sessions[1].onresult(result('segunda frase'));
@@ -33,11 +36,30 @@ for(const file of ['torito','coquette','barli','lupino','leeuwie']) {
  vm.runInContext('finishListening()',ctx);
  const before=sessions.length; timers.forEach(fn=>fn());assert.equal(sessions.length,before);
  assert.deepEqual(sent,['primeira frase','segunda frase','terceira frase']);
- const voices=[{name:'Microsoft Desktop',lang:'pt-BR'},{name:'Google português',lang:'pt-BR'},{name:'Microsoft Francisca Online (Natural)',lang:'pt-BR'},{name:'Unrelated Natural',lang:'en-US'}];
+ if(file!=='torito'){
+ const lang={coquette:'fr-FR',barli:'de-DE',lupino:'it-IT',leeuwie:'nl-NL'}[file];
+ const name={coquette:'Microsoft Denise Online (Natural)',barli:'Microsoft Conrad Online (Natural)',lupino:'Microsoft Diego Online (Natural)',leeuwie:'Microsoft Maarten Online (Natural)'}[file];
+ const voices=[{name:'Unknown Natural',lang},{name,lang},{name,lang:'pt-BR'}];
  ctx.speechSynthesis={getVoices:()=>voices};
- const choose=script.slice(script.indexOf('function bestVoice'),script.indexOf('function pickVoice'));
- vm.runInContext(choose,ctx);
- assert.equal(vm.runInContext('bestVoice("pt-BR").name',ctx),'Microsoft Francisca Online (Natural)');
+ vm.runInContext(script.slice(script.indexOf('function teacherVoice'),script.indexOf('const SPEEDS')),ctx);
+ assert.equal(vm.runInContext('teacherVoice().name',ctx),name);
+ voices.splice(1,1);assert.equal(vm.runInContext('teacherVoice()',ctx),null);
+ // A cancelled utterance cannot reset the listening status or resume old chunks.
+ const utterances=[],statuses=[];
+ const audio=vm.createContext({assert,$,speechRate:1,voice:null,
+  speechSynthesis:{cancel(){},resume(){},speak(u){utterances.push(u)}},
+  SpeechSynthesisUtterance:function(text){this.text=text},teacherVoice:()=>({name,lang}),toast(){},
+  mouth(){},setStatus(...args){statuses.push(args)},setTimeout:()=>1,clearTimeout(){}});
+ vm.runInContext(script.slice(script.indexOf('function speechChunks'),script.indexOf('function plain')),audio);
+ vm.runInContext(script.slice(script.indexOf('let speakId'),script.indexOf('/* ---------- Ouvir')),audio);
+ assert.equal(vm.runInContext('speechChunks("Português [[Bonjour!]]")[0].text',audio),"Bonjour!");
+ vm.runInContext('speak("[[Uma frase.]] [[Outra frase.]]"); stopSpeaking(); setStatus("listen","Ouvindo");',audio);
+ utterances[0].onend();
+ assert.equal(utterances.length,1);assert.deepEqual(statuses.at(-1),['listen','Ouvindo']);
+ }
+ const greeting=script.slice(script.indexOf('async function greet()'),script.indexOf('$("settingsBtn").onclick'));
+ assert.doesNotMatch(greeting,/await ask|fetch\(/);
+ assert.doesNotMatch(script.slice(script.indexOf('/* Ajustes passam')),/greet\(/);
  console.log(`${file}: isolated recordings, late events, form send, pending restarts, language and natural voice selection passed`);
 }
 })().catch(e=>{console.error(e);process.exitCode=1});

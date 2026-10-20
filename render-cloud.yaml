@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: wordly-conversa
+    runtime: node
+    plan: free
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_FREE_TIER_CONFIRMED
+        value: "false"
