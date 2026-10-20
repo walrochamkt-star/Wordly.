@@ -85,11 +85,11 @@ html,body{height:100%;overflow:hidden}
 .sheet .close{position:absolute;right:12px;top:12px}
 .toast{bottom:120px}
 </style>
-</head>
-<body>
-<div class="app">
+<link rel="stylesheet" href="/practice.css"><link rel="stylesheet" href="/freespeak.css"></head>
+<body class="free-speak-page"><div class="app-shell"><aside class="sidebar"><a class="wordmark" href="/" aria-label="Wordly, início">wordly<span>●</span></a><p class="eyebrow">VIVA O IDIOMA</p><h1>Sua voz.<br>Novas conexões.</h1><p class="sidebar-copy">Pratique situações reais com professores de idiomas. No seu ritmo, com espaço para tentar de novo.</p><label for="shellTeacher">Seu parceiro de conversa</label><select id="shellTeacher"><option value="torito">Torito · Espanhol</option><option value="coquette">Coquette · Francês</option><option value="barli">Bärli · Alemão</option><option value="lupino" selected>Lupino · Italiano</option><option value="leeuwie">Leeuwie · Holandês</option></select><nav class="side-nav" aria-label="Navegação principal"><a  href="/">Início</a><a href="/lessons.html?teacher=lupino">Conversação em cenas</a><a class="active" aria-current="page" href="/lupino.html">Free Speak</a><a href="/phone.html?teacher=lupino">Celular · reading & texting</a></nav><div class="progress-card"><p>Converse. Experimente. Ganhe confiança.</p><small>Cinco idiomas para o seu dia a dia.</small></div></aside>
+<main class="app" aria-label="Free Speak com Lupino">
   <header>
-    <h1><a href="index.html" style="color:inherit;text-decoration:none" title="Voltar para o Wordly">Lupino <small>Wordly · Seu professor de italiano</small></a></h1>
+    <h1><a href="/#professores" style="color:inherit;text-decoration:none" title="Voltar para o Wordly">Lupino <small>Wordly · Seu professor de italiano</small></a></h1>
     <div style="display:flex;gap:10px;align-items:center">
       <button class="chip hidden" id="historyBtn">Conversa</button>
       <button class="chip hidden" id="settingsBtn">Ajustes</button>
@@ -117,8 +117,8 @@ html,body{height:100%;overflow:hidden}
   <!-- Configuração e download -->
   <div class="sheet" id="setup"><div class="panel">
     <button class="chip close hidden" id="closeSetup">Fechar</button>
-    <a class="chip" href="index.html" style="display:inline-block;text-decoration:none;color:inherit;margin-bottom:8px">Trocar de professor</a>
-    <h2>Antes de começar</h2>
+    <a class="chip" href="/#professores" style="display:inline-block;text-decoration:none;color:inherit;margin-bottom:8px">Trocar de professor</a>
+    <h2>Vamos preparar sua conversa</h2>
     <div class="row">
       <div>
         <a href="/lessons.html?teacher=lupino" class="chip">Cenas de conversação por voz</a> <a href="/phone.html?teacher=lupino" class="chip">Celular: reading e texting</a>
@@ -130,7 +130,7 @@ html,body{height:100%;overflow:hidden}
         </select>
       </div>
       <div>
-        <label for="humor">Humor do Lupino</label>
+        <label for="humor">Estilo do Lupino</label>
         <select id="humor">
           <option value="sweet">Sweet (sem palavrão)</option>
           <option value="spicy" selected>Spicy (palavrão às vezes)</option>
@@ -149,9 +149,9 @@ html,body{height:100%;overflow:hidden}
       <option value="meet">Conhecendo alguém numa festa em Milão</option>
       <option value="travel">Chegando em Roma (aeroporto e hotel)</option>
     </select>
-    <label for="model">Onde o professor pensa</label>
-    <select id="model"><option value="local" selected>No meu aparelho — sem cota de IA</option></select>
-    <button class="big" id="start">Acordar o Lupino</button>
+    <label for="model">Modo de conversa</label>
+    <select id="model"><option value="local" selected>IA no meu aparelho, sem API paga</option></select>
+    <button class="big" id="start">Começar a conversar</button>
     <button class="chip hidden" id="cancelLoad">Cancelar download</button>
     <div class="bar hidden" id="barWrap"><i id="bar"></i></div>
     <div class="small" id="loadText">Converse por texto ou voz. A voz do professor é sintetizada.</div>
@@ -182,7 +182,7 @@ html,body{height:100%;overflow:hidden}
     </div>
   </div>
 
-</div>
+</main></div>
 <div class="toast hidden" id="toast"></div>
 <div class="sheet hidden" id="historySheet"><div class="panel">
   <button class="chip close" id="closeHistory">Fechar</button>
@@ -599,5 +599,5 @@ $("historySheet").onclick = e => { if(e.target.id === "historySheet") $("history
 /* Ajustes passam a valer na próxima resposta, preservando o contexto. */
 ["level","humor","scene"].forEach(id => $(id).onchange = () => { if(engine && !busy){ stopSpeaking(); setStatus("", "Sua vez"); } });
 </script>
-</body>
+<script type="module" src="/shell-ui.mjs"></script></body>
 </html>

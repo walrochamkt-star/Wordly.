@@ -1,0 +1,19 @@
+/* Free Speak shares the lessons design tokens, navigation, type and components. */
+:root{--bg:var(--cream);--card:#fff;--red:var(--orange);--yellow:#f3bb7e;--brown:#355551;--green:#6a9e72}
+html,body{height:auto;overflow:auto}body{font-family:'DM Sans',system-ui,sans-serif;background:var(--cream);color:var(--ink)}
+.free-speak-page .app-shell{min-height:100dvh}.free-speak-page .app{width:100%;max-width:1150px;height:100dvh;margin:0 auto;padding:28px clamp(20px,4vw,65px) 24px;gap:16px;min-width:0}
+.free-speak-page header h1{font:600 28px Outfit,sans-serif;letter-spacing:-.7px}.free-speak-page header h1 small{font:400 13px 'DM Sans',sans-serif;color:var(--muted);margin-top:5px}
+.free-speak-page .sidebar h1{font-family:Outfit,sans-serif}.free-speak-page .sidebar select{font-family:'DM Sans',sans-serif}
+.free-speak-page .stage{border-radius:28px;background:#e7ebda;box-shadow:none;border:1px solid var(--line);min-height:160px}
+.free-speak-page .stage>svg{height:100%;width:100%;object-fit:contain}
+.free-speak-page .caption{background:#fff;border-radius:24px;box-shadow:none;padding:20px 24px;border:1px solid var(--line)}
+.free-speak-page .caption .line,.free-speak-page .bubble .es{font-family:Outfit,sans-serif;font-size:23px;line-height:1.45;max-height:4.35em}
+.free-speak-page .caption .you{font-family:'DM Sans',sans-serif}.free-speak-page .caption .extra,.free-speak-page .tip{background:#f7f1e4}
+.free-speak-page .chip,.free-speak-page .speed{font-family:'DM Sans',sans-serif;border-radius:12px;background:#eef2e9;color:var(--ink);font-size:12px;font-weight:700;padding:10px 13px}
+.free-speak-page .status{font-family:'DM Sans',sans-serif;color:var(--ink);font-size:12px}.free-speak-page .flag{display:none}
+.free-speak-page .mic{background:var(--orange);box-shadow:0 0 0 7px #f9e5d7;font-family:'DM Sans',sans-serif;width:66px;height:66px;font-size:11px}.free-speak-page .mic.on{background:#b84e3c}
+.free-speak-page .controls .in{max-width:none;width:100%;gap:20px}.free-speak-page .typing{border-radius:16px;min-width:0}.free-speak-page .typing button{background:var(--orange);color:white}
+.free-speak-page .sheet{background:#173b3966;align-items:center}.free-speak-page .panel{border-radius:26px;padding:30px;box-shadow:0 25px 80px #173b3920}.free-speak-page .panel h2{font-family:Outfit,sans-serif;font-size:26px;max-width:85%;margin-top:14px}
+.free-speak-page .panel select{background:#faf6ed;color:var(--ink);font-family:'DM Sans',sans-serif}.free-speak-page .panel label{color:#52675b}.free-speak-page .big{font-family:'DM Sans',sans-serif;background:var(--orange);font-size:15px;border-radius:13px}
+.free-speak-page .bubble{box-shadow:none}.free-speak-page .me{background:#edf2e7;border-color:#dce4d6}.free-speak-page .toast{background:var(--ink)}
+@media(max-width:700px){.free-speak-page .app{height:auto;min-height:calc(100dvh - 200px);padding:24px 16px 20px}.free-speak-page .stage{height:42dvh;flex:none;min-height:220px;max-height:480px}.free-speak-page header h1{font-size:25px}.free-speak-page .caption{padding:18px}.free-speak-page .controls{position:sticky;bottom:0;background:var(--cream);padding:14px 0 8px;z-index:3}.free-speak-page .sheet{padding:12px}.free-speak-page .panel{padding:24px 18px}.free-speak-page .row{grid-template-columns:1fr}.free-speak-page .caption .line{font-size:21px}}
