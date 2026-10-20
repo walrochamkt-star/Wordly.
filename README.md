@@ -63,3 +63,14 @@ Torito usa por padrão Piper com a voz espanhola fixa `es_ES-davefx-medium`, exe
 O modo alternativo só aceita vozes espanholas com identidade masculina conhecida pelo nome. Se nenhuma estiver disponível, avisa em vez de escolher uma voz feminina ou portuguesa. Não se modifica o pitch para simular gênero. O áudio do Torito é espanhol, inclusive no A1; a tradução portuguesa permanece no texto. Explicações locais em português fora dos trechos marcados não são narradas.
 
 Runtime: https://github.com/Mintplex-Labs/piper-tts-web (MIT), fixado em 1.0.3. Voz: https://huggingface.co/rhasspy/piper-voices/tree/main/es/es_ES/davefx/medium (consultar MODEL_CARD; conjunto de dados CC0). Downloads do runtime: jsDelivr/cdnjs. Modelo servido pelo espelho diffusionstudio/piper-voices usado pela biblioteca. A síntese não usa API paga nem envia o texto a um serviço de TTS.
+
+
+## Aulas guiadas e Free Speak híbrido
+
+`/lessons.html?teacher=torito` oferece 39 microaulas por idioma (195 combinações), com três etapas: aprender, compreensão da intenção e prática textual. As expressões são conteúdo editorial inicial, não um curso completo certificado. A aula com palavrão exige opt-in. Dados clínicos/legais não são ensinados como aconselhamento.
+
+Progresso por professor fica em `wordly:learning:v1:<teacher>` no localStorage, sem conta ou sincronização. Falhas de armazenamento são informadas. Avaliação aceita igualdade normalizada e variantes explicitamente cadastradas; sobreposição de palavras nunca aprova uma resposta. Não avalia pronúncia nem afirma que uma resposta desconhecida está errada.
+
+Cada página oferece Free Speak com respostas rápidas, sem baixar a IA inicialmente. Só cumprimentos, agradecimentos e alguns pedidos de café são cobertos pelo roteador conservador. Perguntas desconhecidas carregam o modelo local; o carregamento pode ser cancelado. O Free Speak normal também usa esses padrões. Prática anterior é incluída de forma limitada no contexto do modelo. Não há chamadas ao Gemini nesse fluxo. Áudio ainda é sintetizado durante o uso: não há um banco de gravações prontas.
+
+Limites: WebGPU para conversa aberta; transcrição depende do serviço de reconhecimento do navegador; vozes dependem do dispositivo ou Piper. Respostas abertas ainda podem ser lentas. Conteúdo multilíngue precisa de revisão editorial contínua por falantes/professores, sobretudo registros e variações regionais.

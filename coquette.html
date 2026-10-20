@@ -121,6 +121,7 @@ html,body{height:100%;overflow:hidden}
     <h2>Antes de começar</h2>
     <div class="row">
       <div>
+        <a href="/lessons.html?teacher=coquette" class="chip">Fazer uma aula do dia a dia</a>
         <label for="level">Seu nível</label>
         <select id="level">
           <option value="A1">Iniciante (A1)</option>
@@ -190,6 +191,7 @@ html,body{height:100%;overflow:hidden}
 </div></div>
 
 <script type="module">
+
 
 
 const $ = id => document.getElementById(id);
@@ -460,7 +462,10 @@ function parse(raw){
 async function ask(messages){
   let data;
   if(engine.complete){
-    data = {raw:await engine.complete(messages, {level:$("level").value,humor:$("humor").value,scene:$("scene").value})};
+    const lessonApi=await import('/lessons-data.mjs');
+    const prepared=lessonApi.fastReply('coquette',messages.at(-1).content,{topic:quickTopic,previous:messages.filter(m=>m.role==='assistant').at(-1)?.content||''});
+    if(prepared){quickTopic=prepared.topic;data={raw:`COQUETTE: [[${prepared.answer}]]\nTRADUCAO: ${prepared.pt}\nDICA: -`};}
+    else data = {raw:await engine.complete(messages, {level:$("level").value,humor:$("humor").value,scene:$("scene").value})};
   }else{
   const response = await fetch("/api/chat", {
     method: "POST", headers: {"Content-Type":"application/json"},
@@ -501,6 +506,36 @@ async function send(text){
 function alertBox(msg){ $("err").textContent = msg; $("err").classList.remove("hidden"); $("setup").classList.remove("hidden"); }
 
 /* Conecta ao servidor; a chave da API nunca vai para o navegador. */
+let quickTopic=new URLSearchParams(location.search).get('topic')||'';
+let quickLocal=null;
+async function quickComplete(messages,settings){
+ const lessons=await import('/lessons-data.mjs');
+ const previous=messages.filter(m=>m.role==='assistant').at(-1)?.content||'';
+ const match=lessons.fastReply('coquette',messages.at(-1).content,{topic:quickTopic,previous});
+ if(match){quickTopic=match.topic;return `${lessons.locales['coquette'][2].toUpperCase().replace('Ä','AE')}: [[${match.answer}]]\nTRADUCAO: ${match.pt}\nDICA: -`;}
+ if(!quickLocal){
+   setStatus('think','Preparando conversa aberta no aparelho');
+   const {createLocalTutor}=await import('/local-ai.mjs');
+   loadController=new AbortController();
+   try{quickLocal=await createLocalTutor({signal:loadController.signal,teacher:'coquette',onProgress:p=>setStatus('think','Carregando conversa aberta: '+Math.round((p.progress||0)*100)+'%')});}finally{loadController=null;}
+ }
+ return quickLocal.complete(messages,settings);
+}
+const cancelQuick=document.createElement('button');cancelQuick.type='button';cancelQuick.className='chip';cancelQuick.textContent='Cancelar preparação da IA';cancelQuick.onclick=()=>loadController?.abort();$('controls').append(cancelQuick);
+const quickButton=document.createElement('button');quickButton.type='button';quickButton.className='chip';quickButton.textContent='Free Speak com respostas rápidas';
+$('start').before(quickButton);
+const quickHelp=document.createElement('p');quickHelp.className='small';quickHelp.textContent='Cumprimentos e alguns pedidos conhecidos respondem sem carregar a IA. Outros assuntos carregam o modelo local e podem demorar.';quickButton.after(quickHelp);
+quickButton.onclick=async()=>{
+ if(busy||engine||loadController)return;
+ quickButton.disabled=true;engine={complete:quickComplete};
+ $('setup').classList.add('hidden');$('start').classList.add('hidden');$('model').disabled=true;
+ for(const id of ['settingsBtn','historyBtn','closeSetup','caption','controls'])$(id).classList.remove('hidden');
+ const lessons=await import('/lessons-data.mjs');const topic=lessons.curriculum('coquette').find(l=>l.id===quickTopic&&!l.explicit);
+ history=[];$('log').innerHTML='';
+ if(topic){const p={es:'[['+topic.answer+']]',pt:topic.pt,tip:'Pratique este tema ou mude de assunto. A pronúncia não é avaliada pela transcrição.'};addTeacher(p);speak(p.es);}
+ else await greet();
+};
+if(new URLSearchParams(location.search).get('quick')==='1')quickButton.click();
 let modeCheck = 0;
 async function describeMode(){
   const check = ++modeCheck;

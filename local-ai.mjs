@@ -1,3 +1,4 @@
+import {learningContext} from './lessons-data.mjs';
 import {teachers} from './tutor-prompt.mjs';
 export const WEBLLM_URL='https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.85/+esm';
 export const LOCAL_REPLY_SCHEMA=JSON.stringify({type:'object',properties:{answer:{type:'string'},language:{type:'string',enum:['pt','target']},translation:{type:'string'},tip:{type:'string'}},required:['answer','language','translation','tip'],additionalProperties:false});
@@ -23,8 +24,9 @@ export function localMessages(teacher,settings,messages){
  while(recent.length>1&&recent.reduce((n,m)=>n+m.content.length,0)>5000) recent.splice(0,2);
  const name=rememberedName(messages);
  const t=teachers[teacher];
+ let learned='';try{learned=learningContext(globalThis.localStorage,teacher);}catch{}
  const level=settings.level||'A1';
- const levelRule=`Speak entirely in ${t.language} at CEFR ${level}, even when the student asks in Portuguese. The spoken answer must not contain Portuguese. Provide Brazilian Portuguese only in translation, set language to target.`;
+ const levelRule=`Previous guided practice (not proof of pronunciation): ${learned || 'none'}. Speak entirely in ${t.language} at CEFR ${level}, even when the student asks in Portuguese. The spoken answer must not contain Portuguese. Provide Brazilian Portuguese only in translation, set language to target.`;
  const scene={bar:'ordering drinks',restaurant:'ordering food',meet:'meeting someone',travel:'airport and hotel'}[settings.scene]||'free conversation';
  const mood=settings.humor==='sweet'?'Be patient; no swearing.':'Be friendly and lightly playful; never distract from the question.';
  const base=`You are ${t.name}, a ${t.language} tutor for Brazilian adults. Answer the latest question directly and accurately. Use history to retain names and topic. Never restart, greet again, invent grammar or change topic without reason. ${levelRule} ${mood} Optional scene: ${scene}; the latest student question overrides it. Ask a follow-up only when useful.`;
@@ -43,7 +45,7 @@ export async function createLocalTutor({teacher,signal,onProgress=()=>{},gpu=glo
  if(!Object.hasOwn(teachers,teacher)) throw Error('Professor inválido.');
  const cancelled=()=>{if(signal?.aborted) throw Error('Download cancelado. Você pode tentar novamente.');};
  cancelled();
- if(!gpu) throw Error('Este navegador não tem WebGPU. Tente Chrome ou Edge atualizado em um computador compatível, ou escolha Gemini online.');
+ if(!gpu) throw Error('Este navegador não tem WebGPU. Tente Chrome ou Edge atualizado em um computador compatível, ou use as aulas guiadas, que não precisam do modelo local.');
  const support=await checkLocalSupport({gpu});
  if(!support.ok) throw Error(support.message);
  const adapter=support.adapter;

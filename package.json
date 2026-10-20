@@ -1,1 +1,1 @@
-{"name":"wordly","private":true,"type":"module","engines":{"node":">=22"},"scripts":{"start":"node server.mjs","test":"node --test tests/server.test.mjs tests/local-ai.test.mjs tests/torito-voice.test.mjs && node tests/conversation.cjs && node tests/microphone.cjs"}}
+{"name":"wordly","private":true,"type":"module","engines":{"node":">=22"},"scripts":{"start":"node server.mjs","test":"node --test tests/lessons.test.mjs tests/server.test.mjs tests/local-ai.test.mjs tests/torito-voice.test.mjs && node tests/conversation.cjs && node tests/microphone.cjs"}}
