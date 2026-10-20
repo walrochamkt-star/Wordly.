@@ -56,3 +56,5 @@ else if(match.id==='sugar'&&(topic==='sugar'||/azúcar|sucre|Zucker|zucchero|sui
 else if(match.id==='hello'){answer=['¡Hola! ¿Qué tal?','Bonjour ! Comment ça va ?','Hallo! Wie geht es dir?','Ciao! Come stai?','Hallo! Hoe gaat het?'][i];pt='Olá! Como vai?';}
 else if(match.id==='thanks'){answer=['De nada.','Je t’en prie.','Gern geschehen.','Prego.','Graag gedaan.'][i];pt='De nada.';}
 else return null;return {answer,pt,topic:next,source:'prepared'};}
+
+export function lessonVoice(teacher,voices){const names={coquette:/\b(denise|julie|amelie|hortense|audrey|aurelie|female|femme)\b/i,barli:/\b(stefan|markus|conrad|hans|yannick|male|mann)\b/i,lupino:/\b(luca|diego|cosimo|giorgio|giuseppe|male|uomo)\b/i,leeuwie:/\b(xander|frank|maarten|coen|male|man)\b/i};if(!names[teacher])return null;return voices.filter(v=>v.lang.split(/[-_]/)[0]===locales[teacher][0].split('-')[0]&&names[teacher].test(v.name.normalize('NFD').replace(/\p{M}/gu,''))&&!(teacher==='coquette'?/\b(male|homme)\b/i:/\b(female|frau|donna|vrouw)\b/i).test(v.name)).sort((a,b)=>Number(/natural|neural|online/i.test(b.name))-Number(/natural|neural|online/i.test(a.name)))[0]||null;}

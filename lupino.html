@@ -255,9 +255,9 @@ function speak(text){
     const myId = speakId;
     settleSpeech = resolve;
     const chunks = speechChunks(text);
-    if(!chunks.length){ settleSpeech=null; return resolve(); }
+    if(!chunks.length){ settleSpeech=null; setStatus("", "Sua vez"); return resolve(); }
     const selectedVoice=teacherVoice();
-    if(!selectedVoice){ settleSpeech=null; toast("Não encontrei a voz deste professor no aparelho. Instale uma voz italiano compatível nas configurações de voz do sistema ou tente o Microsoft Edge."); return resolve(); }
+    if(!selectedVoice){ settleSpeech=null; setStatus("", "Sua vez"); toast("Não encontrei a voz deste professor no aparelho. Instale uma voz italiano compatível nas configurações de voz do sistema ou tente o Microsoft Edge."); return resolve(); }
     setStatus("talk", "Lupino falando");
     mouth(true);
     let i = 0;
@@ -516,12 +516,12 @@ async function quickComplete(messages,settings){
  if(!quickLocal){
    setStatus('think','Preparando conversa aberta no aparelho');
    const {createLocalTutor}=await import('/local-ai.mjs');
-   loadController=new AbortController();
-   try{quickLocal=await createLocalTutor({signal:loadController.signal,teacher:'lupino',onProgress:p=>setStatus('think','Carregando conversa aberta: '+Math.round((p.progress||0)*100)+'%')});}finally{loadController=null;}
+   loadController=new AbortController();cancelQuick.classList.remove('hidden');
+   try{quickLocal=await createLocalTutor({signal:loadController.signal,teacher:'lupino',onProgress:p=>setStatus('think','Carregando conversa aberta: '+Math.round((p.progress||0)*100)+'%')});}finally{loadController=null;cancelQuick.classList.add('hidden');}
  }
  return quickLocal.complete(messages,settings);
 }
-const cancelQuick=document.createElement('button');cancelQuick.type='button';cancelQuick.className='chip';cancelQuick.textContent='Cancelar preparação da IA';cancelQuick.onclick=()=>loadController?.abort();$('controls').append(cancelQuick);
+const cancelQuick=document.createElement('button');cancelQuick.type='button';cancelQuick.className='chip hidden';cancelQuick.textContent='Cancelar preparação da IA';cancelQuick.onclick=()=>loadController?.abort();$('controls').append(cancelQuick);
 const quickButton=document.createElement('button');quickButton.type='button';quickButton.className='chip';quickButton.textContent='Free Speak com respostas rápidas';
 $('start').before(quickButton);
 const quickHelp=document.createElement('p');quickHelp.className='small';quickHelp.textContent='Cumprimentos e alguns pedidos conhecidos respondem sem carregar a IA. Outros assuntos carregam o modelo local e podem demorar.';quickButton.after(quickHelp);
