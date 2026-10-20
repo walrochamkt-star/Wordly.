@@ -86,3 +86,8 @@ Visual: cenas cartunescas em atlas 7x6 por espécie, baseadas nos mascotes forne
 
 
 O celular também oferece conversa livre por mensagens, com carregamento explícito da IA local apenas no primeiro envio. O registro formal/informal é passado ao contexto do modelo. Controles cancelam carregamento/geração e ignoram respostas de sessões antigas. Reading usa os diálogos preparados; conversa livre usa texting. Os próprios mascotes fornecidos pelo usuário aparecem nos contatos.
+
+
+## Correção das ilustrações
+
+Os atlas de baixa resolução foram substituídos por imagens individuais por ambiente: dez ambientes por professor, compartilhados entre situações compatíveis. Não há recorte de sprite, nem ampliação de quadrinhos pequenos. As imagens são exibidas inteiras com `object-fit: contain`, carregadas por proximidade de viewport. Os arquivos `<teacher>-scene-art.mjs` do atlas antigo não são usados pela interface nem servidos pelo servidor.

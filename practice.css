@@ -8,3 +8,6 @@
 .tile-art{aspect-ratio:1/1}.scene-stage{background:#e7ebda}.scene-art{width:360px;height:360px;max-width:100%;aspect-ratio:1/1}.scene-shade{background:linear-gradient(90deg,transparent 20%,#e7ebda 48%)}.scene-caption{left:43%;bottom:35px;color:var(--ink);right:28px}.scene-caption .eyebrow{color:#7c7957}.scene-caption h2{font-size:32px}.scene-caption p{color:#52675b}
 @media(max-width:1000px) and (min-width:701px){.scene-art{width:300px;height:300px}.scene-caption{left:45%;bottom:25px}.scene-caption h2{font-size:27px}.scene-caption p{font-size:12px}}
 @media(max-width:700px){.scene-stage{height:auto;display:flex;flex-direction:column}.scene-art{height:auto;width:100%;max-width:none;aspect-ratio:1/1}.scene-shade{display:none}.scene-caption{position:relative;left:auto;right:auto;bottom:auto;padding:20px}.scene-caption .eyebrow{margin-top:0}.scene-caption h2{font-size:27px}}
+
+/* Individual artwork: always show the full frame; never crop or enlarge a sprite. */
+.tile-art,.scene-art{background-image:none!important;overflow:hidden;display:flex;align-items:center;justify-content:center;background-color:#edf0e3}.tile-art img,.scene-art img{display:block;width:100%;height:100%;object-fit:contain;object-position:center}.scene-shade{display:none}
