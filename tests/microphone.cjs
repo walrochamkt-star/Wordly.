@@ -14,12 +14,15 @@ for(const file of ['torito','coquette','barli','lupino','leeuwie']) {
  vm.runInContext(code,ctx);
  const result=t => ({results:[Object.assign([{transcript:t}],{isFinal:true})]});
  await vm.runInContext('startListening()',ctx);
- assert.equal(sessions[0].lang,'pt-BR');
+ const target={torito:'es-ES',coquette:'fr-FR',barli:'de-DE',lupino:'it-IT',leeuwie:'nl-NL'}[file];
+ assert.equal(sessions[0].lang,target);
+ $('micLanguage').value='pt-BR';
  const lateResult=sessions[0].onresult, lateEnd=sessions[0].onend;
  sessions[0].onresult(result('primeira frase'));
  $('typeForm').onsubmit({preventDefault(){}});
  assert.deepEqual(sent,['primeira frase']); assert.equal(sessions[0].aborted,true);
  await vm.runInContext('startListening()',ctx);
+ assert.equal(sessions[1].lang,'pt-BR');
  lateResult(result('fala antiga')); lateEnd();
  assert.equal($('typeIn').value,'');
  sessions[1].onresult(result('segunda frase'));

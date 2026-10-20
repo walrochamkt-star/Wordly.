@@ -137,6 +137,9 @@ html,body{height:100%;overflow:hidden}
         </select>
       </div>
     </div>
+    <label for="micLanguage">Idioma que vou falar</label>
+    <select id="micLanguage"><option value="es-ES" selected>Espanhol</option><option value="pt-BR">Português</option></select>
+    <div class="small">O microfone reconhece o idioma escolhido, independentemente do nível. A transcrição pode interpretar sons incorretamente; o professor recebe o texto, sem avaliar o áudio original.</div>
     <label for="scene">Situação</label>
     <select id="scene">
       <option value="free">Conversa livre</option>
@@ -358,7 +361,7 @@ async function startListening(){
 }
 function beginRecognition(session = micSession){
   const active = new SR(); rec = active;
-  active.lang = $("level").value === "A1" ? "pt-BR" : "es-ES";
+  active.lang = $("micLanguage").value || "es-ES";
   active.continuous = true; active.interimResults = true; active.maxAlternatives = 1;
   currentFinal = "";
   const valid = () => session === micSession && rec === active && !finished;
@@ -420,6 +423,7 @@ $("mic").onclick = () => {
   // O texto já aparece em tempo real. Envia sem aguardar outro evento do navegador.
   finishListening();
 };
+$("micLanguage").onchange = () => { resetRecognition(); setStatus("", "Idioma do microfone atualizado"); };
 $("typeForm").onsubmit = e => {
   e.preventDefault();
   if(busy || !engine) return;
