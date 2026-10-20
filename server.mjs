@@ -5,7 +5,7 @@ import {fileURLToPath} from 'node:url';
 
 import {teachers,promptFor} from './tutor-prompt.mjs';
 export {teachers,promptFor} from './tutor-prompt.mjs';
-const publicPaths=new Set(['scene-illustrations.mjs','individual-art/manifest.mjs',...Object.keys(teachers).flatMap(t=>illustrationFamilies.map(id=>'individual-art/'+t+'-'+id+'.mjs')),'teacher-portraits.mjs','practice.css','conversation-scenes.mjs','phone.html','phone-data.mjs','phone-ui.mjs','lessons.html','lessons-data.mjs','lessons-ui.mjs','torito-voice.mjs','torito-voice-worker.mjs','local-ai.mjs','local-worker.mjs','tutor-prompt.mjs','index.html',...Object.keys(teachers).map(t=>t+'.html')]);
+const publicPaths=new Set(['scene-illustrations.mjs','individual-art/manifest.mjs',...Object.keys(teachers).flatMap(t=>illustrationFamilies.map(id=>'individual-art/'+t+'-'+id+'.mjs')),'teacher-portraits.mjs','practice.css','conversation-scenes.mjs','lesson-tutor.mjs','phone.html','phone-data.mjs','phone-ui.mjs','lessons.html','lessons-data.mjs','lessons-ui.mjs','torito-voice.mjs','torito-voice-worker.mjs','local-ai.mjs','local-worker.mjs','tutor-prompt.mjs','index.html',...Object.keys(teachers).map(t=>t+'.html')]);
 export function makeServer({env=process.env,fetchImpl=fetch,root=new URL('./',import.meta.url),clock=Date.now}={}){
  let active=0; const rate=new Map();
  const ready=()=>Boolean(env.GEMINI_API_KEY&&env.GEMINI_FREE_TIER_CONFIRMED==='true');
